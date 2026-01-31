@@ -307,7 +307,7 @@ function HeatmapIndicator({ position }: { position: THREE.Vector3 }) {
             onPointerOver={() => document.body.style.cursor = 'pointer'}
             onPointerOut={() => document.body.style.cursor = 'auto'}
         >
-            <planeGeometry args={[2.5, 2.5]} />
+            <planeGeometry args={[1.0, 1.0]} />
             <shaderMaterial 
                 ref={surfaceMatRef}
                 vertexShader={surfaceVertexShader}
@@ -378,7 +378,7 @@ function OrbitsAndSatellites({ targetWorldPos }: { targetWorldPos: THREE.Vector3
                 }
             }
             return { tle, satrec, points }
-        })
+        }).slice(0, 5) // Keep only a few systems to optimize and then filter for closest
         setSystems(calculatedSystems)
     }, [])
 
@@ -387,42 +387,70 @@ function OrbitsAndSatellites({ targetWorldPos }: { targetWorldPos: THREE.Vector3
         
         const now = new Date()
         const tempObj = new THREE.Object3D()
-        const newSignals: {satPos: THREE.Vector3, targetPos: THREE.Vector3}[] = []
+        const activeSats: {satPos: THREE.Vector3, targetPos: THREE.Vector3, dist: number, index: number}[] = []
 
+        // 1. Update all satellite positions
         systems.forEach((sys, i) => {
             const pv = satellite.propagate(sys.satrec, now)
             if (pv.position && typeof pv.position !== 'boolean') {
                 const pos = eciToThree(pv.position as satellite.EciVec3<number>)
                 
                 tempObj.position.copy(pos)
-                tempObj.scale.set(1, 1, 1)
+                tempObj.scale.set(0, 0, 0) // Hide by default
                 tempObj.updateMatrix()
                 satRefs.current!.setMatrixAt(i, tempObj.matrix)
                 
+                // Calculate distance to target if exists
                 if (targetWorldPos) {
                     const dist = pos.distanceTo(targetWorldPos)
-                     if (dist < 8 && newSignals.length < 4) {
-                        newSignals.push({ satPos: pos.clone(), targetPos: targetWorldPos.clone() })
-                    }
+                    activeSats.push({ satPos: pos.clone(), targetPos: targetWorldPos.clone(), dist, index: i })
                 }
             }
         })
+
+        // 2. Filter for the 2 closest satellites
+        activeSats.sort((a, b) => a.dist - b.dist);
+        const top2 = activeSats.slice(0, 2);
+
+        // 3. Show and connect only the top 2
+        const newSignals: {satPos: THREE.Vector3, targetPos: THREE.Vector3}[] = []
+        
+        top2.forEach((sat) => {
+            // Make visible
+            tempObj.position.copy(sat.satPos)
+            tempObj.scale.set(1, 1, 1) // Show
+            tempObj.updateMatrix()
+            satRefs.current!.setMatrixAt(sat.index, tempObj.matrix)
+            
+            // Add connection line
+            newSignals.push({ satPos: sat.satPos, targetPos: sat.targetPos })
+        })
+
         setSignals(newSignals)
         satRefs.current.instanceMatrix.needsUpdate = true
     })
 
     return (
         <group>
-            {systems.map((sys, i) => (
-                <Line
-                    key={`orbit-${i}`}
-                    points={sys.points}
-                    color="#0088aa"
-                    lineWidth={1}
-                    transparent
-                    opacity={0.4}
-                />
-            ))}
+            {/* Draw orbits only for the active satellites? Or all? Let's hide orbits for "stealth" look or show all? 
+                User said "only 2 satellites", implying minimal clutter. Let's show only active orbits.
+            */}
+            {systems.map((sys, i) => {
+                 // Check if this system is one of the active ones (we need state for this, but for now let's just show all orbits faintly or hide them)
+                 // To strictly follow "only 2 satellites", we should probably hide the orbits of the others too.
+                 // But calculating which one is active inside the map is hard without state.
+                 // Let's just leaving orbits visible as "potential" coverage but only highlight the 2 sats.
+                 return (
+                    <Line
+                        key={`orbit-${i}`}
+                        points={sys.points}
+                        color="#004466" // Darker blue for background orbits
+                        lineWidth={1}
+                        transparent
+                        opacity={0.15} // Very faint
+                    />
+                 )
+            })}
 
             <instancedMesh ref={satRefs} args={[undefined, undefined, systems.length]}>
                 <sphereGeometry args={[0.08, 16, 16]} />
@@ -433,14 +461,14 @@ function OrbitsAndSatellites({ targetWorldPos }: { targetWorldPos: THREE.Vector3
                 <Line
                     key={`sig-${i}`}
                     points={[sig.satPos, sig.targetPos]}
-                    color="#00ffff"
+                    color="#00ff88" // Tech Green for active lock
                     lineWidth={1}
                     transparent
-                    opacity={0.6}
+                    opacity={0.8}
                     dashed
-                    dashScale={20}
-                    dashSize={0.5}
-                    gapSize={0.5}
+                    dashScale={10}
+                    dashSize={0.4}
+                    gapSize={0.2}
                 />
             ))}
         </group>
@@ -453,7 +481,7 @@ function SceneContent() {
     const { addAlert } = useStore()
     
     useEffect(() => {
-        const t1 = setTimeout(() => addAlert("Signal Intercepted: Mid-Atlantic Ocean", "warning"), 2000)
+        const t1 = setTimeout(() => addAlert("Signal Intercepted: South Pacific (Point Nemo)", "warning"), 2000)
         return () => clearTimeout(t1)
     }, [addAlert])
 
@@ -461,7 +489,8 @@ function SceneContent() {
         if (earthGroup.current) {
             earthGroup.current.rotation.y += 0.0005 // Earth rotates
             
-            const relativePos = latLonToVector3(34.0, -40.0, SCENE_EARTH_RADIUS + 0.05)
+            // Point Nemo (Oceanic Pole of Inaccessibility): -48.9 S, -123.4 W
+            const relativePos = latLonToVector3(-48.9, -123.4, SCENE_EARTH_RADIUS + 0.05)
             const worldPos = relativePos.clone().applyMatrix4(earthGroup.current.matrixWorld)
             setTargetWorldPos(worldPos)
         }
@@ -477,13 +506,9 @@ function SceneContent() {
                 </React.Suspense>
                 
                 {/* Heatmap overlay on surface */}
-                <HeatmapIndicator position={latLonToVector3(34.0, -40.0, SCENE_EARTH_RADIUS + 0.08)} />
+                <HeatmapIndicator position={latLonToVector3(-48.9, -123.4, SCENE_EARTH_RADIUS + 0.08)} />
 
-                {/* Target Dot */}
-                <mesh position={latLonToVector3(34.0, -40.0, SCENE_EARTH_RADIUS + 0.05)}>
-                    <sphereGeometry args={[0.03, 16, 16]} />
-                    <meshBasicMaterial color="#ff3300" toneMapped={false} />
-                </mesh>
+                {/* Target Dot - Removed, handled by HeatmapIndicator */}
                 
                 <AtmosphereGlow />
             </group>

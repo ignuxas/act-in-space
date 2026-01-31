@@ -59,19 +59,34 @@ function TutorialModal() {
                                     <text x="210" y="30" fill="white" fontSize="10">Tx (GNSS)</text>
                                     
                                     {/* Moving Rx (Sentinel) */}
-                                    <motion.g 
+                                    <motion.circle 
+                                        cx="50" cy="80" r="4" fill="#00ccff"
                                         animate={{ x: [-20, 20, -20] }} 
                                         transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
-                                    >
-                                        <circle cx="50" cy="80" r="4" fill="#00ccff" />
-                                        <text x="30" y="75" fill="#00ccff" fontSize="10">Rx (Sentinel)</text>
+                                    />
+                                    <motion.text 
+                                        x="30" y="75" fill="#00ccff" fontSize="10"
+                                        animate={{ x: [-20, 20, -20] }} 
+                                        transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
+                                    >Rx (Sentinel)</motion.text>
 
-                                        {/* Direct Path (Tx -> Rx) */}
-                                        <line x1="200" y1="30" x2="50" y2="80" stroke="#00ffff" strokeWidth="1" strokeDasharray="4 4" opacity="0.6"/>
-                                        
-                                        {/* Reflected Path (SP -> Rx) */}
-                                        <line x1="150" y1="125" x2="50" y2="80" stroke="#ffaa00" strokeWidth="1" />
-                                    </motion.g>
+                                    {/* Dynamic Signal Paths with clamping to avoid overshooting */}
+                                    <motion.line 
+                                        x1="200" y1="30"  // Tx
+                                        // x2 tracks Rx
+                                        animate={{ x2: [50-20, 50+20, 50-20] }}
+                                        y2="80" // Rx y
+                                        transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
+                                        stroke="#00ffff" strokeWidth="1" strokeDasharray="4 4" opacity="0.6"
+                                    />
+                                    <motion.line 
+                                        x1="150" y1="125" // SP
+                                        // x2 tracks Rx
+                                        animate={{ x2: [50-20, 50+20, 50-20] }}
+                                        y2="80" // Rx y
+                                        transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
+                                        stroke="#ffaa00" strokeWidth="1" 
+                                    />
 
                                     {/* Static Path Tx -> Surface */}
                                     <line x1="200" y1="30" x2="150" y2="125" stroke="#ffaa00" strokeWidth="1" strokeDasharray="4 4" opacity="0.6"/>
@@ -183,50 +198,62 @@ function TutorialModal() {
                                         <text x="270" y="195" fill="white" fontSize="10">Delay</text>
                                         <text x="10" y="30" fill="white" fontSize="10">Power</text>
 
-                                        {/* Phase 1: Noisy individual samples (Grey lines) appearing at random X */}
-                                        {[0, 1, 2, 3, 4].map(i => {
-                                            const randomOffset = (i - 2) * 40; // Spread out initially
-                                            return (
-                                                <motion.path
-                                                    key={`sample-${i}`}
-                                                    d="M 30 180 L 100 180 Q 150 50 200 180 L 280 180" // Base shape with peak at center
-                                                    fill="none"
-                                                    stroke="#666"
-                                                    strokeWidth="1"
-                                                    style={{ opacity: 0.3 }}
-                                                    initial={{ x: randomOffset, opacity: 0 }}
-                                                    animate={{ 
-                                                        x: [randomOffset, randomOffset, 0, 0], // Stay -> Move to Center -> Stay
-                                                        opacity: [0, 0.5, 0.5, 0.1] 
-                                                    }} 
-                                                    transition={{ 
-                                                        duration: 6, 
-                                                        times: [0, 0.2, 0.6, 0.9],
-                                                        repeat: Infinity,
-                                                        repeatDelay: 1
-                                                    }}
-                                                />
-                                            )
-                                        })}
+                                    {/* Phase 1: Noisy individual samples (Grey lines aligned as peaks) */}
+                                    {[0, 1, 2, 3, 4].map(i => {
+                                        const xStart = 30; 
+                                        const randomOffset = (i - 2) * 50; // Larger offsets
+                                        
+                                        // Vertical stacking (Waterfall effect)
+                                        // i=0 (back/top) -> i=4 (front/bottom)
+                                        const baseline = 100 + (i * 20); 
+                                        const peakHeight = 50;
+                                        const peakY = baseline - peakHeight;
+                                        
+                                        // Dynamic path based on baseline
+                                        const shapeD = `M 125 ${baseline} C 145 ${baseline}, 145 ${peakY}, 155 ${peakY} C 165 ${peakY}, 165 ${baseline}, 185 ${baseline}`;
 
-                                        {/* Phase 2: Coherent Sum (Huge Cyan Line) */}
-                                        <motion.path
-                                            d="M 30 180 L 100 180 Q 150 20 200 180 L 280 180" // Higher peak
-                                            fill="none"
-                                            stroke="#00ffff"
-                                            strokeWidth="4"
-                                            initial={{ pathLength: 0, opacity: 0 }}
-                                            animate={{ 
-                                                pathLength: [0, 0, 1, 1], 
-                                                opacity: [0, 0, 1, 1] 
-                                            }}
-                                            transition={{ 
-                                                duration: 6, 
-                                                times: [0, 0.6, 0.8, 1], // Appears after grey lines align
-                                                repeat: Infinity,
-                                                repeatDelay: 1
-                                            }}
-                                        />
+                                        return (
+                                            <motion.path
+                                                key={`sample-${i}`}
+                                                d={shapeD}
+                                                fill="none"
+                                                stroke="#666" // Grey lines
+                                                strokeWidth="1.5"
+                                                style={{ opacity: 0.5 }}
+                                                initial={{ x: randomOffset, opacity: 0 }}
+                                                animate={{ 
+                                                    x: [randomOffset, randomOffset, 0, 0], // 1. Dispersed -> 2. Aligned
+                                                    opacity: [0, 0.6, 0.6, 0.2] // Fade out slightly when cyan appears
+                                                }} 
+                                                transition={{ 
+                                                    duration: 6, 
+                                                    times: [0, 0.2, 0.6, 0.9],
+                                                    repeat: Infinity,
+                                                    repeatDelay: 1
+                                                }}
+                                            />
+                                        )
+                                    })}
+
+                                    {/* Phase 2: Coherent Sum (Huge Cyan Line on top) */}
+                                    <motion.path
+                                        // Drawn at the front-most baseline (approx 180)
+                                        d="M 115 180 C 135 180, 140 30, 155 30 C 170 30, 175 180, 195 180"
+                                        fill="none"
+                                        stroke="#00ffff"
+                                        strokeWidth="4"
+                                        initial={{ pathLength: 0, opacity: 0 }}
+                                        animate={{ 
+                                            pathLength: [0, 0, 1, 1], 
+                                            opacity: [0, 0, 1, 1] 
+                                        }}
+                                        transition={{ 
+                                            duration: 6, 
+                                            times: [0, 0.6, 0.8, 1], // Appears after alignment
+                                            repeat: Infinity,
+                                            repeatDelay: 1
+                                        }}
+                                    />
                                         
                                         <motion.text 
                                             x="180" y="40" fill="#00ffff" fontSize="12" fontWeight="bold"

@@ -269,15 +269,46 @@ function StarField() {
     )
 }
 
+function RadarSweep() {
+    const ref = useRef<THREE.Group>(null)
+    useFrame(() => {
+        if (ref.current) {
+            ref.current.rotation.z -= 0.05
+        }
+    })
+    
+    return (
+        <group ref={ref}>
+            <mesh position={[0, 0.4, 0.02]}>
+                <planeGeometry args={[0.02, 0.8]} />
+                <meshBasicMaterial 
+                    color="#00ffff"
+                    transparent
+                    opacity={0.3}
+                    side={THREE.DoubleSide}
+                    blending={THREE.AdditiveBlending}
+                    depthTest={false}
+                />
+            </mesh>
+             <mesh rotation={[0,0,0]} position={[0,0,0.01]}>
+                <ringGeometry args={[0.3, 0.31, 32]} />
+                <meshBasicMaterial color="#00ffff" opacity={0.3} transparent side={THREE.DoubleSide} blending={THREE.AdditiveBlending} depthTest={false} />
+            </mesh>
+             <mesh rotation={[0,0,0]} position={[0,0,0.01]}>
+                <ringGeometry args={[0.45, 0.46, 32]} />
+                <meshBasicMaterial color="#00ffff" opacity={0.1} transparent side={THREE.DoubleSide} blending={THREE.AdditiveBlending} depthTest={false} />
+            </mesh>
+        </group>
+    )
+}
+
 function HeatmapIndicator({ position }: { position: THREE.Vector3 }) {
   const groupRef = useRef<THREE.Group>(null)
   const surfaceMatRef = useRef<THREE.ShaderMaterial>(null)
   const peakMatRef = useRef<THREE.ShaderMaterial>(null)
   
-  // Interaction State
   const { isAnalysisOpen, setAnalysisOpen } = useStore()
   
-  // FIX: Stable Uniforms (Defined at top level)
   const surfaceUniforms = useMemo(() => ({ uTime: { value: 0 } }), [])
   const peakUniforms = useMemo(() => ({ uTime: { value: 0 } }), [])
   
@@ -293,7 +324,7 @@ function HeatmapIndicator({ position }: { position: THREE.Vector3 }) {
   return (
     <group position={position} ref={groupRef}>
         
-        {/* 1. Surface Projection (Fig 2: Iso-Doppler Lines) */}
+        {/* 1. Surface Projection */}
         <mesh 
             position={[0,0,0.02]} 
             onClick={(e) => { 
@@ -316,12 +347,16 @@ function HeatmapIndicator({ position }: { position: THREE.Vector3 }) {
             />
         </mesh>
 
-        {/* 2. Target Label (Removed as requested) */}
+        {/* 2. Clean Radar Sweep */}
+        {!isAnalysisOpen && (
+             <group position={[0,0,0.05]}>
+                <RadarSweep />
+             </group>
+        )}
         
-        {/* 3. POPUP: 3D Correlation Peaks (Fig 4A) */}
+        {/* 3. POPUP: 3D Correlation Peaks */}
         {isAnalysisOpen && (
             <group position={[0, 0, 1.5]} rotation={[-Math.PI/2, 0, 0]}>
-                 {/* The 3D Graph Mesh */}
                  <mesh>
                     <planeGeometry args={[2, 2, 64, 64]} />
                     <shaderMaterial
@@ -334,8 +369,6 @@ function HeatmapIndicator({ position }: { position: THREE.Vector3 }) {
                         uniforms={peakUniforms}
                     />
                  </mesh>
-                 
-                 {/* Graph Frame/Box */}
                  <lineSegments>
                     <edgesGeometry args={[new THREE.BoxGeometry(2, 2, 0.5)]} />
                     <lineBasicMaterial color="#ffffff" opacity={0.3} transparent />

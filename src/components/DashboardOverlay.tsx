@@ -321,6 +321,15 @@ export default function DashboardOverlay() {
   ])
   const logsEndRef = useRef<HTMLDivElement>(null)
 
+  // Clock Update
+  useEffect(() => {
+    const timer = setInterval(() => {
+        const now = new Date()
+        setTime(now.toISOString().split('T')[1].split('.')[0] + 'Z')
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [])
+
   const addLog = (msg: string) => {
     const timeStr = new Date().toISOString().split('T')[1].split('.')[0]
     setLogs(prev => [...prev.slice(-19), `${timeStr} ${msg}`])
@@ -380,32 +389,56 @@ export default function DashboardOverlay() {
   }, [])
 
   return (
-    <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-6 z-10">
+    <div className="absolute inset-0 pointer-events-none p-6 flex flex-col justify-between overflow-hidden">
+      <div className="scanline" />
       
       {/* Header */}
-      <header className="pointer-events-auto flex justify-between items-start">
+      <motion.header 
+        initial={{ y: -50, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.8, ease: "easeOut" }}
+        className="pointer-events-auto flex justify-between items-start bg-gradient-to-b from-black/80 to-transparent pb-4"
+      >
         <div>
-            <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-cyan-300 drop-shadow-lg tracking-tight">
-            GNSS-R Sentinel
+            <h1 className="text-3xl font-black text-white tracking-widest leading-none drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">
+            GNSS-R <span className="text-cyan-400">SENTINEL</span>
             </h1>
-            <p className="text-blue-200/80 text-sm mt-1 tracking-wider uppercase font-medium">Ship Detection Dashboard</p>
+            <div className="flex items-center gap-3 mt-1 opacity-70">
+                <span className="text-[10px] font-mono text-cyan-200 border border-cyan-500/30 px-1 rounded bg-cyan-900/20">V.2.4.0-RC</span>
+                <span className="text-[10px] uppercase tracking-[0.2em] text-gray-400">Maritime Surveillance Array</span>
+            </div>
         </div>
-        <button 
-            onClick={() => setTutorialOpen(true)}
-            className="flex items-center gap-2 bg-cyan-900/50 hover:bg-cyan-800/50 border border-cyan-500/30 px-3 py-1.5 rounded-full backdrop-blur-md transition-colors group"
-        >
-            <span className="w-4 h-4 rounded-full border border-cyan-400 flex items-center justify-center text-[10px] text-cyan-400 font-bold">i</span>
-            <span className="text-xs text-cyan-200 font-bold tracking-wider group-hover:text-white">PRINCIPLES</span>
-        </button>
-      </header>
+        <div className="flex items-center gap-4">
+             {/* Clock */}
+             <div className="text-right hidden md:block">
+                <div className="text-2xl font-mono text-white font-bold tracking-widest leading-none">{time}</div>
+                <div className="text-[10px] text-gray-400 font-mono text-right">UTC ZULU</div>
+             </div>
+             
+             <div className="h-8 w-[1px] bg-white/20 mx-2"></div>
+
+             <button 
+                onClick={() => setTutorialOpen(true)}
+                className="flex items-center gap-2 bg-cyan-900/50 hover:bg-cyan-800/50 border border-cyan-500/30 px-4 py-2 rounded-sm backdrop-blur-md transition-all hover:shadow-[0_0_15px_rgba(34,211,238,0.2)] group"
+            >
+                <span className="w-4 h-4 rounded-full border border-cyan-400 flex items-center justify-center text-[10px] text-cyan-400 font-bold">?</span>
+                <span className="text-xs text-cyan-200 font-bold tracking-wider group-hover:text-white">THEORY</span>
+            </button>
+        </div>
+      </motion.header>
 
       {/* Main Layout Grid */}
-      <div className="flex flex-1 mt-8 gap-6 overflow-hidden">
+      <div className="flex flex-1 mt-4 gap-6 overflow-hidden">
         
         {/* Left Panel: Metrics & Controls */}
-        <div className="w-80 flex flex-col gap-4 pointer-events-auto">
+        <motion.div 
+            initial={{ x: -50, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="w-80 flex flex-col gap-4 pointer-events-auto"
+        >
             {/* Tab Navigation */}
-            <div className="flex p-1 bg-white/5 backdrop-blur-md border border-white/10 rounded-lg">
+            <div className="flex bg-black/40 backdrop-blur-md border border-white/10 rounded-sm p-1 gap-1">
                 {['SYSTEMS', 'CONSTELLATION', 'DATA LOGS'].map((tab) => (
                     <button
                         key={tab}
@@ -569,7 +602,7 @@ export default function DashboardOverlay() {
                      </div>
                 )}
             </div>
-        </div>
+        </motion.div>
 
         {/* Right Panel: Alerts */}
         <div className="w-80 ml-auto pointer-events-auto">
@@ -612,14 +645,21 @@ export default function DashboardOverlay() {
 
       </div>
 
-      {/* Footer / Status Bar */}
-      <footer className="pointer-events-auto bg-white/5 backdrop-blur-md border-t border-white/10 -mx-6 -mb-6 px-6 py-2 flex justify-between items-center text-[10px] text-gray-400 uppercase tracking-widest font-mono">
-         <div className="flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            System Online
+      {/* Footer / Status Bar - Minimal Tech Style */}
+      <footer className="pointer-events-auto flex justify-between items-center text-[10px] uppercase tracking-widest font-mono text-gray-500 mt-auto pt-2 border-t border-white/5 opacity-80 hover:opacity-100 transition-opacity">
+         <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-sm bg-emerald-500 animate-pulse"></span>
+                <span>SYSTEM ONLINE</span>
+            </div>
+            <div className="h-3 w-[1px] bg-white/10"></div>
+            <div>LAT: 54.2°N  LON: 12.1°E</div>
          </div>
-         <div>Lat: 54.2°N | Lon: 12.1°E</div>
-         <div>UTC: {time}</div>
+         <div className="flex items-center gap-4">
+             <div className="text-cyan-400">SECURE LINK ESTABLISHED</div>
+             <div className="h-3 w-[1px] bg-white/10"></div>
+             <div>OP_MODE: PASSIVE</div>
+         </div>
       </footer>
 
       {/* Analysis Popup Modal */}
@@ -627,33 +667,37 @@ export default function DashboardOverlay() {
         {isAnalysisOpen && (
             <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none">
                 <motion.div 
-                    initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                    initial={{ opacity: 0, scale: 0.95, y: 10 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                    className="pointer-events-auto bg-black/80 backdrop-blur-xl border border-white/20 rounded-2xl p-6 w-[400px] shadow-2xl shadow-cyan-900/30"
+                    exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    className="pointer-events-auto bg-[#050a10]/95 backdrop-blur-2xl border border-cyan-500/20 rounded-sm p-0 w-[450px] shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden"
                 >
-                    <div className="flex justify-between items-center mb-6 pb-4 border-b border-white/10">
-                         <div>
-                            <h2 className="text-lg font-bold text-white tracking-wide">SIGNAL ANALYSIS</h2>
-                            <div className="text-xs text-cyan-400 font-mono tracking-widest mt-1">ID: SAT-GNSS-4042</div>
+                    {/* Technical Header */}
+                    <div className="flex justify-between items-stretch h-10 border-b border-white/10 bg-white/5">
+                         <div className="flex items-center px-4 gap-2">
+                            <div className="w-2 h-2 bg-cyan-500 rounded-sm shadow-[0_0_10px_rgba(34,211,238,0.8)]"></div>
+                            <h2 className="text-xs font-bold text-white tracking-widest">SIGNAL ANALYSIS</h2>
+                            <span className="text-[9px] text-cyan-500/50 font-mono ml-2 border-l border-white/10 pl-2">ID: SAT-GNSS-4042</span>
                          </div>
                          <button 
                             onClick={() => setAnalysisOpen(false)}
-                            className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/60 hover:text-white transition-colors"
+                            className="w-10 hover:bg-red-500/20 hover:text-red-400 text-white/40 flex items-center justify-center transition-colors border-l border-white/10"
                          >
                             ✕
                          </button>
                     </div>
                     
-                    <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-white/5 p-3 rounded-lg border border-white/5">
-                                <div className="text-[10px] text-gray-400 font-mono mb-1">REAL POWER</div>
-                                <div className="text-xl font-bold text-emerald-400">-142 dBm</div>
+                    <div className="p-5 space-y-4">
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="bg-black/40 p-2 border border-white/5 relative group">
+                                <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-cyan-500/50 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                <div className="text-[9px] text-gray-500 font-mono mb-1 tracking-wider">REAL POWER</div>
+                                <div className="text-xl font-mono text-emerald-400 text-shadow-glow">-142 dBm</div>
                             </div>
-                            <div className="bg-white/5 p-3 rounded-lg border border-white/5">
-                                <div className="text-[10px] text-gray-400 font-mono mb-1">NOISE FLOOR</div>
-                                <div className="text-xl font-bold text-rose-400">-168 dBm</div>
+                            <div className="bg-black/40 p-2 border border-white/5">
+                                <div className="text-[9px] text-gray-500 font-mono mb-1 tracking-wider">NOISE FLOOR</div>
+                                <div className="text-xl font-mono text-rose-400">-168 dBm</div>
                             </div>
                         </div>
                         

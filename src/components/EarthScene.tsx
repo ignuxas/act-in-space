@@ -166,7 +166,7 @@ function TexturedEarth() {
    
    return (
        <mesh>
-           <sphereGeometry args={[SCENE_EARTH_RADIUS, 64, 64]} />
+           <sphereGeometry args={[SCENE_EARTH_RADIUS, 48, 48]} />
            <meshPhongMaterial
               map={colorMap} 
               shininess={15}
@@ -207,7 +207,7 @@ function AtmosphereGlow() {
 
 function StarField() {
     const { positions, sizes, colors, texture } = useMemo(() => {
-        const count = 5000;
+        const count = 1000; // Reduced star count for cleaner look
         const positions = new Float32Array(count * 3);
         const sizes = new Float32Array(count);
         const colors = new Float32Array(count * 3);
@@ -316,15 +316,8 @@ function HeatmapIndicator({ position }: { position: THREE.Vector3 }) {
             />
         </mesh>
 
-        {/* 2. Target Label (Only when NOT analyzing) */}
-        {!isAnalysisOpen && (
-             <Html position={[0.2, 0.2, 0]} center distanceFactor={10} style={{ pointerEvents: 'none' }}>
-                <div style={{ color: '#00ccff', fontSize: '8px', fontFamily: 'monospace', opacity: 0.8, letterSpacing: '1px' }}>
-                   SIGNAL SOURCE
-                </div>
-            </Html>
-        )}
-
+        {/* 2. Target Label (Removed as requested) */}
+        
         {/* 3. POPUP: 3D Correlation Peaks (Fig 4A) */}
         {isAnalysisOpen && (
             <group position={[0, 0, 1.5]} rotation={[-Math.PI/2, 0, 0]}>
@@ -355,9 +348,11 @@ function HeatmapIndicator({ position }: { position: THREE.Vector3 }) {
 
 function OrbitsAndSatellites({ targetWorldPos }: { targetWorldPos: THREE.Vector3 | null }) {
     const [systems, setSystems] = useState<any[]>([])
-    const satRefs = useRef<THREE.InstancedMesh>(null)
-    const glowRefs = useRef<THREE.InstancedMesh>(null)
+    const pointsRef = useRef<THREE.Points>(null)
     const [signals, setSignals] = useState<{satPos: THREE.Vector3, targetPos: THREE.Vector3}[]>([])
+    
+    // Create the soft glow texture
+    const texture = useMemo(() => createCircleTexture(), [])
 
     useEffect(() => {
         const now = new Date()
@@ -375,34 +370,49 @@ function OrbitsAndSatellites({ targetWorldPos }: { targetWorldPos: THREE.Vector3
                 }
             }
             return { tle, satrec, points }
-        }).slice(0, 5) // Keep only a few systems to optimize and then filter for closest
+        })
         setSystems(calculatedSystems)
     }, [])
 
+    const { positions, colors } = useMemo(() => {
+        if (systems.length === 0) return { positions: new Float32Array(0), colors: new Float32Array(0) }
+        const count = systems.length
+        const pos = new Float32Array(count * 3)
+        const col = new Float32Array(count * 3)
+        
+        // Pale blue color for satellites
+        const color = new THREE.Color(0xaaccff) 
+        
+        for(let i=0; i<count; i++) {
+            col[i*3] = color.r;
+            col[i*3+1] = color.g;
+            col[i*3+2] = color.b;
+        }
+        return { positions: pos, colors: col }
+    }, [systems.length])
+
     useFrame(() => {
-        if (!satRefs.current || !glowRefs.current || systems.length === 0) return
+        if (!pointsRef.current || systems.length === 0) return
         
         const now = new Date()
-        const tempObj = new THREE.Object3D()
-        const activeSats: {satPos: THREE.Vector3, targetPos: THREE.Vector3, dist: number, index: number}[] = []
+        const currentPositions = pointsRef.current.geometry.attributes.position.array as Float32Array
+        
+        const activeSats: {pos: THREE.Vector3, targetPos: THREE.Vector3, dist: number, index: number}[] = []
 
         // 1. Update all satellite positions
-        console.log(glowRefs.current)
         systems.forEach((sys, i) => {
             const pv = satellite.propagate(sys.satrec, now)
             if (pv.position && typeof pv.position !== 'boolean') {
                 const pos = eciToThree(pv.position as satellite.EciVec3<number>)
                 
-                tempObj.position.copy(pos)
-                tempObj.scale.set(0, 0, 0) // Hide by default
-                tempObj.updateMatrix()
-                satRefs.current!.setMatrixAt(i, tempObj.matrix)
-                glowRefs.current!.setMatrixAt(i, tempObj.matrix)
+                // Update buffer
+                currentPositions[i*3] = pos.x
+                currentPositions[i*3+1] = pos.y
+                currentPositions[i*3+2] = pos.z
                 
-                // Calculate distance to target if exists
                 if (targetWorldPos) {
                     const dist = pos.distanceTo(targetWorldPos)
-                    activeSats.push({ satPos: pos.clone(), targetPos: targetWorldPos.clone(), dist, index: i })
+                    activeSats.push({ pos: pos.clone(), targetPos: targetWorldPos.clone(), dist, index: i })
                 }
             }
         })
@@ -411,93 +421,67 @@ function OrbitsAndSatellites({ targetWorldPos }: { targetWorldPos: THREE.Vector3
         activeSats.sort((a, b) => a.dist - b.dist);
         const top2 = activeSats.slice(0, 2);
 
-        // 3. Show and connect only the top 2
         const newSignals: {satPos: THREE.Vector3, targetPos: THREE.Vector3}[] = []
         
-        // VISUAL CONFIG: We want one satellite to look like a LEO Receiver (Sentinel) and one like a GNSS Transmitter
-        // The sorted list 'top2' has the closest satellites. 
-        // We'll force the closest one (index 0) to "drop" to LEO altitude visually to act as the Receiver.
-        
         top2.forEach((sat, idx) => {
-            let visualPos = sat.satPos.clone();
+            let visualPos = sat.pos.clone();
 
             if (idx === 0) {
                 // FORCE LEO ALTITUDE for the "Receiver"
-                // Normalize and set scale to slightly above Earth radius (2.0)
-                // 2.0 (Earth) + 0.5 (Altitude) = 2.5
                 visualPos.normalize().multiplyScalar(SCENE_EARTH_RADIUS * 1.25);
             } else {
-                 // Ensure GNSS is high enough (it usually is, but let's clamp it to be safe)
-                 const currentDist = visualPos.length();
-                 if (currentDist < SCENE_EARTH_RADIUS * 2.5) {
+                 if (visualPos.length() < SCENE_EARTH_RADIUS * 2.5) {
                      visualPos.normalize().multiplyScalar(SCENE_EARTH_RADIUS * 3.5);
                  }
             }
-
-            // Update Mesh Position
-            tempObj.position.copy(visualPos)
-            tempObj.scale.set(1, 1, 1) // Show
-            tempObj.updateMatrix()
-            satRefs.current!.setMatrixAt(sat.index, tempObj.matrix)
             
-            // Update Glow Position
-            tempObj.scale.set(1, 1, 1) // Make glow visible and larger relative to orb (handled by geometry size)
-            tempObj.updateMatrix()
-            glowRefs.current!.setMatrixAt(sat.index, tempObj.matrix)
+            // Overwrite the specific satellite position in the buffer to match the visual logic
+            currentPositions[sat.index*3] = visualPos.x
+            currentPositions[sat.index*3+1] = visualPos.y
+            currentPositions[sat.index*3+2] = visualPos.z
             
-            // Add connection line
-            // IMPORTANT: The line must point exactly to the center of the target ellipsoid.
             newSignals.push({ satPos: visualPos, targetPos: sat.targetPos })
         })
 
         setSignals(newSignals)
-        satRefs.current.instanceMatrix.needsUpdate = true
-        glowRefs.current.instanceMatrix.needsUpdate = true
+        pointsRef.current.geometry.attributes.position.needsUpdate = true
     })
 
     return (
         <group>
-            {/* Draw orbits only for the active satellites? Or all? Let's hide orbits for "stealth" look or show all? 
-                User said "only 2 satellites", implying minimal clutter. Let's show only active orbits.
-            */}
-            {systems.map((sys, i) => {
-                 // Check if this system is one of the active ones (we need state for this, but for now let's just show all orbits faintly or hide them)
-                 // To strictly follow "only 2 satellites", we should probably hide the orbits of the others too.
-                 // But calculating which one is active inside the map is hard without state.
-                 // Let's just leaving orbits visible as "potential" coverage but only highlight the 2 sats.
-                 return (
-                    <Line
-                        key={`orbit-${i}`}
-                        points={sys.points}
-                        color="#004466" // Darker blue for background orbits
-                        lineWidth={1}
-                        transparent
-                        opacity={0.15} // Very faint
-                    />
-                 )
-            })}
+            {systems.map((sys, i) => (
+                <Line
+                    key={`orbit-${i}`}
+                    points={sys.points}
+                    color="#004466" 
+                    lineWidth={1}
+                    transparent
+                    opacity={0.15} 
+                />
+            ))}
 
-            <instancedMesh ref={satRefs} args={[undefined, undefined, systems.length]}>
-                <sphereGeometry args={[0.04, 16, 16]} />
-                <meshBasicMaterial color="#ffffff" toneMapped={false} />
-            </instancedMesh>
-            
-            <instancedMesh ref={glowRefs} args={[undefined, undefined, systems.length]}>
-                <sphereGeometry args={[0.15, 16, 16]} />
-                <meshBasicMaterial 
-                    color="#00ffff" 
-                    transparent 
-                    opacity={0.4} 
-                    blending={THREE.AdditiveBlending} 
+            <points ref={pointsRef}>
+                <bufferGeometry>
+                    <bufferAttribute attach="attributes-position" count={positions.length / 3} array={positions} itemSize={3} />
+                    <bufferAttribute attach="attributes-color" count={colors.length / 3} array={colors} itemSize={3} />
+                </bufferGeometry>
+                <pointsMaterial 
+                    map={texture}
+                    size={0.5} // Large size (approx 1.0 visual scale)
+                    sizeAttenuation
+                    vertexColors
+                    transparent
+                    opacity={1.0}
+                    blending={THREE.AdditiveBlending}
                     depthWrite={false}
                 />
-            </instancedMesh>
+            </points>
 
             {signals.map((sig, i) => (
                 <Line
                     key={`sig-${i}`}
                     points={[sig.satPos, sig.targetPos]}
-                    color="#00ff88" // Tech Green for active lock
+                    color="#00ff88" 
                     lineWidth={1}
                     transparent
                     opacity={0.8}
@@ -557,13 +541,13 @@ export default function EarthScene() {
   return (
     <div className="w-full h-full absolute inset-0 bg-black">
       <Canvas camera={{ position: [3, 4, 3], fov: 45 }}>
-        <color attach="background" args={['#000815']} />
-        <fog attach="fog" args={['#000815', 5, 50]} />
+        <color attach="background" args={[0x000510]} />
+        <fog attach="fog" args={[0x000510, 10, 50]} />
         
         <SceneContent />
         
-        <ambientLight intensity={0.4} color="#ffffff" />
-        <directionalLight position={[5, 3, 5]} intensity={1.5} color="#ffffff" />
+        <ambientLight intensity={0.4} color={0xffffff} />
+        <directionalLight position={[5, 3, 5]} intensity={1.5} color={0xffffff} />
         
         <StarField />
         <OrbitControls enablePan={false} minDistance={3} maxDistance={20} />

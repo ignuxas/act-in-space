@@ -12,11 +12,13 @@ interface AppState {
   weather: number
   showFusion: boolean
   showAnomalies: boolean
+  isAnalysisOpen: boolean
   alerts: Alert[]
   setPrecision: (value: number) => void
   setWeather: (value: number) => void
   toggleFusion: () => void
   toggleAnomalies: () => void
+  setAnalysisOpen: (isOpen: boolean) => void
   addAlert: (message: string, type?: 'info' | 'warning' | 'critical') => void
   removeAlert: (id: string) => void
 }
@@ -26,11 +28,13 @@ export const useStore = create<AppState>((set) => ({
   weather: 0.3,
   showFusion: true,
   showAnomalies: true,
+  isAnalysisOpen: false,
   alerts: [],
   setPrecision: (value) => set({ precision: value }),
   setWeather: (value) => set({ weather: value }),
   toggleFusion: () => set((state) => ({ showFusion: !state.showFusion })),
   toggleAnomalies: () => set((state) => ({ showAnomalies: !state.showAnomalies })),
+  setAnalysisOpen: (isOpen) => set({ isAnalysisOpen: isOpen }),
   addAlert: (message, type = 'info') => set((state) => ({
     alerts: [
       { id: Math.random().toString(36).substr(2, 9), message, timestamp: Date.now(), type },

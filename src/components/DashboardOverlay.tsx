@@ -7,10 +7,10 @@ import { cn } from '@/lib/utils'
 
 export default function DashboardOverlay() {
   const { 
-    precision, weather, showFusion, showAnomalies, alerts,
-    setPrecision, setWeather, toggleFusion, toggleAnomalies, removeAlert 
+    precision, weather, showFusion, showAnomalies, alerts, isAnalysisOpen,
+    setPrecision, setWeather, toggleFusion, toggleAnomalies, removeAlert, setAnalysisOpen 
   } = useStore()
-
+  
   const [time, setTime] = useState('')
 
   useEffect(() => {
@@ -168,6 +168,88 @@ export default function DashboardOverlay() {
          <div>Lat: 54.2°N | Lon: 12.1°E</div>
          <div>UTC: {time}</div>
       </footer>
+
+      {/* Analysis Popup Modal */}
+      <AnimatePresence>
+        {isAnalysisOpen && (
+            <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none">
+                <motion.div 
+                    initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                    className="pointer-events-auto bg-black/80 backdrop-blur-xl border border-white/20 rounded-2xl p-6 w-[400px] shadow-2xl shadow-cyan-900/30"
+                >
+                    <div className="flex justify-between items-center mb-6 pb-4 border-b border-white/10">
+                         <div>
+                            <h2 className="text-lg font-bold text-white tracking-wide">SIGNAL ANALYSIS</h2>
+                            <div className="text-xs text-cyan-400 font-mono tracking-widest mt-1">ID: SAT-GNSS-4042</div>
+                         </div>
+                         <button 
+                            onClick={() => setAnalysisOpen(false)}
+                            className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/60 hover:text-white transition-colors"
+                         >
+                            ✕
+                         </button>
+                    </div>
+                    
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-white/5 p-3 rounded-lg border border-white/5">
+                                <div className="text-[10px] text-gray-400 font-mono mb-1">REAL POWER</div>
+                                <div className="text-xl font-bold text-emerald-400">-142 dBm</div>
+                            </div>
+                            <div className="bg-white/5 p-3 rounded-lg border border-white/5">
+                                <div className="text-[10px] text-gray-400 font-mono mb-1">NOISE FLOOR</div>
+                                <div className="text-xl font-bold text-rose-400">-168 dBm</div>
+                            </div>
+                        </div>
+                        
+                        <div className="bg-white/5 p-4 rounded-lg border border-white/5 space-y-3">
+                             <div className="flex justify-between text-xs items-center">
+                                <span className="text-gray-400">Correlation Peak</span>
+                                <span className="text-white font-mono">0.984</span>
+                             </div>
+                             <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                                <motion.div 
+                                    className="h-full bg-cyan-500" 
+                                    initial={{ width: 0 }}
+                                    animate={{ width: '98.4%' }}
+                                    transition={{ duration: 1, delay: 0.2 }}
+                                />
+                             </div>
+                             
+                             <div className="flex justify-between text-xs items-center pt-2">
+                                <span className="text-gray-400">Multipath Error</span>
+                                <span className="text-white font-mono">1.2m</span>
+                             </div>
+                             <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                                <motion.div 
+                                    className="h-full bg-yellow-500" 
+                                    initial={{ width: 0 }}
+                                    animate={{ width: '12%' }}
+                                    transition={{ duration: 1, delay: 0.4 }}
+                                />
+                             </div>
+                        </div>
+                        
+                         <div className="p-3 bg-cyan-950/30 border border-cyan-500/20 rounded text-xs text-cyan-200 leading-relaxed">
+                            <strong className="text-cyan-400 block mb-1">AI INSIGHT</strong>
+                            Signal exhibits characteristics consistent with ship-borne GNSS interference. High confidence reflection detected at coordinates.
+                        </div>
+                        
+                        <div className="flex gap-3 pt-2">
+                            <button className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 rounded text-xs tracking-wider transition-colors">
+                                GENERATE REPORT
+                            </button>
+                             <button className="flex-1 bg-white/5 hover:bg-white/10 text-white font-bold py-2 rounded text-xs tracking-wider transition-colors border border-white/10">
+                                MARK FALSE POSITIVE
+                            </button>
+                        </div>
+                    </div>
+                </motion.div>
+            </div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

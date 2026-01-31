@@ -54,40 +54,27 @@ function TutorialModal() {
                                     {/* Orbital Plane/Surface */}
                                     <path d="M50 150 L100 100 L250 100 L200 150 Z" fill="none" stroke="#444" strokeDasharray="4 4" />
                                     
-                                    {/* Satellites */}
+                                    {/* Static Tx (GNSS) */}
+                                    <circle cx="200" cy="30" r="4" fill="white" />
+                                    <text x="210" y="30" fill="white" fontSize="10">Tx (GNSS)</text>
+                                    
+                                    {/* Moving Rx (Sentinel) */}
                                     <motion.g 
-                                        animate={{ x: [0, 20, 0], y: [0, -5, 0] }} 
-                                        transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+                                        animate={{ x: [-20, 20, -20] }} 
+                                        transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
                                     >
-                                        <circle cx="150" cy="40" r="4" fill="white" />
-                                        <text x="160" y="40" fill="white" fontSize="10">Tx (GNSS)</text>
+                                        <circle cx="50" cy="80" r="4" fill="#00ccff" />
+                                        <text x="30" y="75" fill="#00ccff" fontSize="10">Rx (Sentinel)</text>
+
+                                        {/* Direct Path (Tx -> Rx) */}
+                                        <line x1="200" y1="30" x2="50" y2="80" stroke="#00ffff" strokeWidth="1" strokeDasharray="4 4" opacity="0.6"/>
                                         
-                                        {/* Signal Paths */}
-                                        <motion.path 
-                                            d="M150 40 L50 80" // To Rx
-                                            stroke="#00ffff" strokeWidth="1" strokeDasharray="4 4"
-                                            animate={{ strokeDashoffset: [20, 0] }}
-                                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                                        />
-                                        <motion.path 
-                                            d="M150 40 L150 125" // To Surface
-                                            stroke="#ffaa00" strokeWidth="1"
-                                            animate={{ strokeDashoffset: [20, 0] }}
-                                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                                        />
+                                        {/* Reflected Path (SP -> Rx) */}
+                                        <line x1="150" y1="125" x2="50" y2="80" stroke="#ffaa00" strokeWidth="1" />
                                     </motion.g>
 
-                                    <circle cx="50" cy="80" r="4" fill="#00ccff" />
-                                    <text x="30" y="75" fill="#00ccff" fontSize="10">Rx (Sentinel)</text>
-                                    
-                                    {/* Reflection */}
-                                    <motion.path 
-                                        d="M150 125 L50 80" // Surface to Rx
-                                        stroke="#ffaa00" strokeWidth="1"
-                                        initial={{ pathLength: 0, opacity: 0.5 }}
-                                        animate={{ pathLength: 1, opacity: 1 }}
-                                        transition={{ duration: 1.5, repeat: Infinity }}
-                                    />
+                                    {/* Static Path Tx -> Surface */}
+                                    <line x1="200" y1="30" x2="150" y2="125" stroke="#ffaa00" strokeWidth="1" strokeDasharray="4 4" opacity="0.6"/>
                                     
                                     {/* Specular Point Ripple */}
                                     <circle cx="150" cy="125" r="2" fill="none" stroke="#ffaa00">
@@ -147,24 +134,17 @@ function TutorialModal() {
                                         />
                                     ))}
                                     
-                                    {/* Iso-Doppler Hyperbolas (Approximated as curves) */}
-                                    {[1, 2].map((i) => (
-                                        <React.Fragment key={`h-${i}`}>
-                                            <motion.path 
-                                                d={`M ${150 - i*30} 20 Q 150 100 ${150 - i*30} 180`}
-                                                fill="none" stroke="#00ffff" strokeWidth="1"
-                                                initial={{ pathLength: 0 }}
-                                                animate={{ pathLength: 1 }}
-                                                transition={{ duration: 2, delay: 1 }}
-                                            />
-                                            <motion.path 
-                                                d={`M ${150 + i*30} 20 Q 150 100 ${150 + i*30} 180`}
-                                                fill="none" stroke="#00ffff" strokeWidth="1"
-                                                initial={{ pathLength: 0 }}
-                                                animate={{ pathLength: 1 }}
-                                                transition={{ duration: 2, delay: 1 }}
-                                            />
-                                        </React.Fragment>
+                                    {/* Iso-Doppler Lines (Running parallel) */}
+                                    {[-2, -1, 0, 1, 2].map((i) => (
+                                        <motion.line 
+                                            key={`d-${i}`}
+                                            x1={150 + (i * 30)} y1="20"
+                                            x2={150 + (i * 30)} y2="180"
+                                            stroke="#00ffff" strokeWidth="1"
+                                            initial={{ pathLength: 0, opacity: 0 }}
+                                            animate={{ pathLength: 1, opacity: [0.3, 1, 0.3] }}
+                                            transition={{ duration: 3, repeat: Infinity, delay: Math.abs(i) * 0.5 }}
+                                        />
                                     ))}
                                     
                                     {/* Labels */}
@@ -194,31 +174,68 @@ function TutorialModal() {
                                 </p>
                             </div>
                             <div className="w-1/2 h-full bg-black/20 rounded-xl border border-white/10 relative overflow-hidden flex items-center justify-center p-4">
-                                {/* DDM 3D Animation (Using CSS3D or simple SVG layering) */}
-                                <div className="relative w-full h-full flex items-end justify-center perspective-800">
+                                {/* DDM Integration Animation */}
+                                <div className="relative w-full h-full flex items-end justify-center">
                                      <svg viewBox="0 0 300 200" className="w-full h-full overflow-visible">
-                                        {[0,1,2,3,4,5].map(i => (
-                                            <motion.path
-                                                key={`wave-${i}`}
-                                                d="M 50 150 Q 150 50 250 150"
-                                                fill="none"
-                                                stroke={i === 2 ? "#00ff88" : "#444"}
-                                                strokeWidth={i === 2 ? 3 : 1}
-                                                style={{ translateY: i * -15, translateX: i * 10,  scale: 1 - i*0.05 }}
-                                                animate={{ d: [
-                                                    "M 50 150 Q 150 50 250 150", 
-                                                    "M 50 150 Q 150 20 250 150",
-                                                    "M 50 150 Q 150 50 250 150"
-                                                ] }}
-                                                transition={{ duration: 3, delay: i * 0.2, repeat: Infinity }}
-                                            />
-                                        ))}
-                                        
                                         {/* Axes */}
-                                        <line x1="50" y1="150" x2="280" y2="150" stroke="white" strokeWidth="1" />
-                                        <line x1="50" y1="150" x2="50" y2="20" stroke="white" strokeWidth="1" />
-                                        <text x="270" y="170" fill="white" fontSize="10">Delay (τ)</text>
-                                        <text x="30" y="30" fill="white" fontSize="10">Doppler</text>
+                                        <line x1="30" y1="180" x2="280" y2="180" stroke="white" strokeWidth="1" />
+                                        <line x1="30" y1="180" x2="30" y2="20" stroke="white" strokeWidth="1" />
+                                        <text x="270" y="195" fill="white" fontSize="10">Delay</text>
+                                        <text x="10" y="30" fill="white" fontSize="10">Power</text>
+
+                                        {/* Phase 1: Noisy individual samples (Grey lines) appearing at random X */}
+                                        {[0, 1, 2, 3, 4].map(i => {
+                                            const randomOffset = (i - 2) * 40; // Spread out initially
+                                            return (
+                                                <motion.path
+                                                    key={`sample-${i}`}
+                                                    d="M 30 180 L 100 180 Q 150 50 200 180 L 280 180" // Base shape with peak at center
+                                                    fill="none"
+                                                    stroke="#666"
+                                                    strokeWidth="1"
+                                                    style={{ opacity: 0.3 }}
+                                                    initial={{ x: randomOffset, opacity: 0 }}
+                                                    animate={{ 
+                                                        x: [randomOffset, randomOffset, 0, 0], // Stay -> Move to Center -> Stay
+                                                        opacity: [0, 0.5, 0.5, 0.1] 
+                                                    }} 
+                                                    transition={{ 
+                                                        duration: 6, 
+                                                        times: [0, 0.2, 0.6, 0.9],
+                                                        repeat: Infinity,
+                                                        repeatDelay: 1
+                                                    }}
+                                                />
+                                            )
+                                        })}
+
+                                        {/* Phase 2: Coherent Sum (Huge Cyan Line) */}
+                                        <motion.path
+                                            d="M 30 180 L 100 180 Q 150 20 200 180 L 280 180" // Higher peak
+                                            fill="none"
+                                            stroke="#00ffff"
+                                            strokeWidth="4"
+                                            initial={{ pathLength: 0, opacity: 0 }}
+                                            animate={{ 
+                                                pathLength: [0, 0, 1, 1], 
+                                                opacity: [0, 0, 1, 1] 
+                                            }}
+                                            transition={{ 
+                                                duration: 6, 
+                                                times: [0, 0.6, 0.8, 1], // Appears after grey lines align
+                                                repeat: Infinity,
+                                                repeatDelay: 1
+                                            }}
+                                        />
+                                        
+                                        <motion.text 
+                                            x="180" y="40" fill="#00ffff" fontSize="12" fontWeight="bold"
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: [0, 0, 1, 0] }}
+                                            transition={{ duration: 6, repeat: Infinity, repeatDelay: 1 }}
+                                        >
+                                            INTEGRATED SIGNAL
+                                        </motion.text>
                                      </svg>
                                 </div>
                             </div>

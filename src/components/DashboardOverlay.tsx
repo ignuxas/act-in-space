@@ -135,17 +135,15 @@ function TutorialModal() {
                                     </defs>
                                     <rect width="100%" height="100%" fill="url(#smallGrid)" />
                                     
-                                    {/* Iso-Delay Ellipses */}
+                                    {/* Iso-Delay Ellipses (Static Reference) */}
                                     {[1, 2, 3].map((i) => (
-                                        <motion.ellipse 
+                                        <ellipse 
                                             key={`e-${i}`}
                                             cx="150" cy="100" 
                                             rx={i * 25} ry={i * 15}
                                             fill="none" stroke="#ffaa00" strokeWidth="1.5"
                                             strokeDasharray="4 2"
-                                            initial={{ opacity: 0, scale: 0.8 }}
-                                            animate={{ opacity: 0.6, scale: 1 }}
-                                            transition={{ delay: i * 0.2, duration: 2, repeat: Infinity, repeatType: "reverse" }}
+                                            opacity="0.5"
                                         />
                                     ))}
                                     
@@ -200,17 +198,17 @@ function TutorialModal() {
 
                                     {/* Phase 1: Noisy individual samples (Grey lines aligned as peaks) */}
                                     {[0, 1, 2, 3, 4].map(i => {
-                                        const xStart = 30; 
-                                        const randomOffset = (i - 2) * 50; // Larger offsets
+                                        const randomStart = (i - 2) * 60; // Larger offsets
                                         
-                                        // Vertical stacking (Waterfall effect)
-                                        // i=0 (back/top) -> i=4 (front/bottom)
+                                        // Varied heights
+                                        const heights = [45, 60, 35, 55, 40];
+                                        const peakHeight = heights[i];
                                         const baseline = 100 + (i * 20); 
-                                        const peakHeight = 50;
                                         const peakY = baseline - peakHeight;
                                         
-                                        // Dynamic path based on baseline
-                                        const shapeD = `M 125 ${baseline} C 145 ${baseline}, 145 ${peakY}, 155 ${peakY} C 165 ${peakY}, 165 ${baseline}, 185 ${baseline}`;
+                                        // Extended lines: start far left (-100) end far right (400) relative to center
+                                        // M -100 baseline L 125 baseline C ... 185 baseline L 400 baseline
+                                        const shapeD = `M -100 ${baseline} L 125 ${baseline} C 145 ${baseline}, 145 ${peakY}, 155 ${peakY} C 165 ${peakY}, 165 ${baseline}, 185 ${baseline} L 400 ${baseline}`;
 
                                         return (
                                             <motion.path
@@ -220,16 +218,15 @@ function TutorialModal() {
                                                 stroke="#666" // Grey lines
                                                 strokeWidth="1.5"
                                                 style={{ opacity: 0.5 }}
-                                                initial={{ x: randomOffset, opacity: 0 }}
+                                                initial={{ x: randomStart, opacity: 0 }}
                                                 animate={{ 
-                                                    x: [randomOffset, randomOffset, 0, 0], // 1. Dispersed -> 2. Aligned
+                                                    x: [randomStart, randomStart, 0, 0], // 1. Dispersed -> 2. Aligned
                                                     opacity: [0, 0.6, 0.6, 0.2] // Fade out slightly when cyan appears
                                                 }} 
                                                 transition={{ 
                                                     duration: 6, 
                                                     times: [0, 0.2, 0.6, 0.9],
-                                                    repeat: Infinity,
-                                                    repeatDelay: 1
+                                                    ease: ["linear", "circOut", "linear"] // Fast then slow alignment
                                                 }}
                                             />
                                         )
@@ -237,8 +234,8 @@ function TutorialModal() {
 
                                     {/* Phase 2: Coherent Sum (Huge Cyan Line on top) */}
                                     <motion.path
-                                        // Drawn at the front-most baseline (approx 180)
-                                        d="M 115 180 C 135 180, 140 30, 155 30 C 170 30, 175 180, 195 180"
+                                        // Drawn at the front-most baseline (approx 180) with extended lines
+                                        d="M -100 180 L 115 180 C 135 180, 140 30, 155 30 C 170 30, 175 180, 195 180 L 400 180"
                                         fill="none"
                                         stroke="#00ffff"
                                         strokeWidth="4"

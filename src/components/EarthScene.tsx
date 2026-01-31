@@ -86,12 +86,8 @@ void main() {
   float rings = sin(dist * 80.0 - uTime * 0.5);
   float pattern = smoothstep(0.95, 0.98, rings); // Extremely thin lines
   
-  // Hyperbolic Delay Lines
-  float hyperbola = sin((pos.x * pos.x - pos.y * pos.y) * 30.0);
-  float hyperPattern = smoothstep(0.95, 0.98, hyperbola);
-  
   // Composite technical grid
-  float lines = max(pattern, hyperPattern * 0.4); 
+  float lines = pattern;
   
   // Professional Palette: Cyan/Blue (ESA/NASA style)
   vec3 colorUser = vec3(0.0, 0.8, 1.0); // Cyan
@@ -360,6 +356,7 @@ function HeatmapIndicator({ position }: { position: THREE.Vector3 }) {
 function OrbitsAndSatellites({ targetWorldPos }: { targetWorldPos: THREE.Vector3 | null }) {
     const [systems, setSystems] = useState<any[]>([])
     const satRefs = useRef<THREE.InstancedMesh>(null)
+    const glowRefs = useRef<THREE.InstancedMesh>(null)
     const [signals, setSignals] = useState<{satPos: THREE.Vector3, targetPos: THREE.Vector3}[]>([])
 
     useEffect(() => {
@@ -383,13 +380,14 @@ function OrbitsAndSatellites({ targetWorldPos }: { targetWorldPos: THREE.Vector3
     }, [])
 
     useFrame(() => {
-        if (!satRefs.current || systems.length === 0) return
+        if (!satRefs.current || !glowRefs.current || systems.length === 0) return
         
         const now = new Date()
         const tempObj = new THREE.Object3D()
         const activeSats: {satPos: THREE.Vector3, targetPos: THREE.Vector3, dist: number, index: number}[] = []
 
         // 1. Update all satellite positions
+        console.log(glowRefs.current)
         systems.forEach((sys, i) => {
             const pv = satellite.propagate(sys.satrec, now)
             if (pv.position && typeof pv.position !== 'boolean') {
@@ -399,6 +397,7 @@ function OrbitsAndSatellites({ targetWorldPos }: { targetWorldPos: THREE.Vector3
                 tempObj.scale.set(0, 0, 0) // Hide by default
                 tempObj.updateMatrix()
                 satRefs.current!.setMatrixAt(i, tempObj.matrix)
+                glowRefs.current!.setMatrixAt(i, tempObj.matrix)
                 
                 // Calculate distance to target if exists
                 if (targetWorldPos) {
@@ -415,19 +414,45 @@ function OrbitsAndSatellites({ targetWorldPos }: { targetWorldPos: THREE.Vector3
         // 3. Show and connect only the top 2
         const newSignals: {satPos: THREE.Vector3, targetPos: THREE.Vector3}[] = []
         
-        top2.forEach((sat) => {
-            // Make visible
-            tempObj.position.copy(sat.satPos)
+        // VISUAL CONFIG: We want one satellite to look like a LEO Receiver (Sentinel) and one like a GNSS Transmitter
+        // The sorted list 'top2' has the closest satellites. 
+        // We'll force the closest one (index 0) to "drop" to LEO altitude visually to act as the Receiver.
+        
+        top2.forEach((sat, idx) => {
+            let visualPos = sat.satPos.clone();
+
+            if (idx === 0) {
+                // FORCE LEO ALTITUDE for the "Receiver"
+                // Normalize and set scale to slightly above Earth radius (2.0)
+                // 2.0 (Earth) + 0.5 (Altitude) = 2.5
+                visualPos.normalize().multiplyScalar(SCENE_EARTH_RADIUS * 1.25);
+            } else {
+                 // Ensure GNSS is high enough (it usually is, but let's clamp it to be safe)
+                 const currentDist = visualPos.length();
+                 if (currentDist < SCENE_EARTH_RADIUS * 2.5) {
+                     visualPos.normalize().multiplyScalar(SCENE_EARTH_RADIUS * 3.5);
+                 }
+            }
+
+            // Update Mesh Position
+            tempObj.position.copy(visualPos)
             tempObj.scale.set(1, 1, 1) // Show
             tempObj.updateMatrix()
             satRefs.current!.setMatrixAt(sat.index, tempObj.matrix)
             
+            // Update Glow Position
+            tempObj.scale.set(1, 1, 1) // Make glow visible and larger relative to orb (handled by geometry size)
+            tempObj.updateMatrix()
+            glowRefs.current!.setMatrixAt(sat.index, tempObj.matrix)
+            
             // Add connection line
-            newSignals.push({ satPos: sat.satPos, targetPos: sat.targetPos })
+            // IMPORTANT: The line must point exactly to the center of the target ellipsoid.
+            newSignals.push({ satPos: visualPos, targetPos: sat.targetPos })
         })
 
         setSignals(newSignals)
         satRefs.current.instanceMatrix.needsUpdate = true
+        glowRefs.current.instanceMatrix.needsUpdate = true
     })
 
     return (
@@ -453,8 +478,19 @@ function OrbitsAndSatellites({ targetWorldPos }: { targetWorldPos: THREE.Vector3
             })}
 
             <instancedMesh ref={satRefs} args={[undefined, undefined, systems.length]}>
-                <sphereGeometry args={[0.08, 16, 16]} />
-                <meshBasicMaterial color="#00ffff" toneMapped={false} />
+                <sphereGeometry args={[0.04, 16, 16]} />
+                <meshBasicMaterial color="#ffffff" toneMapped={false} />
+            </instancedMesh>
+            
+            <instancedMesh ref={glowRefs} args={[undefined, undefined, systems.length]}>
+                <sphereGeometry args={[0.15, 16, 16]} />
+                <meshBasicMaterial 
+                    color="#00ffff" 
+                    transparent 
+                    opacity={0.4} 
+                    blending={THREE.AdditiveBlending} 
+                    depthWrite={false}
+                />
             </instancedMesh>
 
             {signals.map((sig, i) => (
@@ -490,7 +526,8 @@ function SceneContent() {
             earthGroup.current.rotation.y += 0.0005 // Earth rotates
             
             // Point Nemo (Oceanic Pole of Inaccessibility): -48.9 S, -123.4 W
-            const relativePos = latLonToVector3(-48.9, -123.4, SCENE_EARTH_RADIUS + 0.05)
+            // ADJUSTMENT: Match the HeatmapIndicator Radius exactly (Radius + 0.08)
+            const relativePos = latLonToVector3(-48.9, -123.4, SCENE_EARTH_RADIUS + 0.08)
             const worldPos = relativePos.clone().applyMatrix4(earthGroup.current.matrixWorld)
             setTargetWorldPos(worldPos)
         }

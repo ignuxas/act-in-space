@@ -330,18 +330,27 @@ export default function DashboardOverlay() {
     logsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [logs])
 
-  // Simulate Satellite Live Data
+  // Simulate Satellite Live Data (Affected by System Controls)
   useEffect(() => {
     const interval = setInterval(() => {
-        setSatellites(prev => prev.map(sat => ({
-            ...sat,
-            snr: Math.max(30, Math.min(55, sat.snr + (Math.random() - 0.5) * 4)), // Jitter SNR
-            el: sat.el + (Math.random() * 0.02), // Slow drift
-            az: sat.az + (Math.random() * 0.02)
-        })))
+        setSatellites(prev => prev.map(sat => {
+            // Weather reduces overall signal strength (max 15dBm penalty)
+            const weatherPenalty = weather * 15
+            // Precision reduces the noise/jitter (higher precision = lower noise)
+            const noiseFloor = (1 - precision) * 4 
+            
+            const jitter = (Math.random() - 0.5) * noiseFloor
+            
+            return {
+                ...sat,
+                snr: Math.max(10, Math.min(55, sat.snr + jitter - (weatherPenalty * 0.05))), // Slow drift towards penalty
+                el: sat.el + (Math.random() * 0.02), 
+                az: sat.az + (Math.random() * 0.02)
+            }
+        }))
     }, 500)
     return () => clearInterval(interval)
-  }, [])
+  }, [precision, weather]) // Re-run when controls change
 
   // System Event Logging
   useEffect(() => {
@@ -420,16 +429,25 @@ export default function DashboardOverlay() {
                             <h2 className="text-xs font-semibold text-blue-300 uppercase mb-3 tracking-widest">Real-time Metrics</h2>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <div className="text-2xl font-bold text-cyan-400">98.2%</div>
+                                    {/* Detection Rate: High Precision increases it, Weather decreases it */}
+                                    <div className="text-2xl font-bold text-cyan-400">
+                                        {(85 + (precision * 15) - (weather * 10)).toFixed(1)}%
+                                    </div>
                                     <div className="text-[10px] text-gray-400 uppercase tracking-wider">Detection Rate</div>
                                 </div>
                                 <div>
-                                    <div className="text-2xl font-bold text-emerald-400">12km²</div>
+                                    {/* Coverage: Weather heavily impacts effective coverage area */}
+                                    <div className="text-2xl font-bold text-emerald-400">
+                                        {(12 * (1 - weather * 0.4)).toFixed(1)}km²
+                                    </div>
                                     <div className="text-[10px] text-gray-400 uppercase tracking-wider">Coverage</div>
                                 </div>
                                 <div className="col-span-2">
-                                    <div className="text-2xl font-bold text-purple-400">+14%</div>
-                                    <div className="text-[10px] text-gray-400 uppercase tracking-wider">Precision Gain</div>
+                                    {/* Precision Gain: Direct correlation to precision slider */}
+                                    <div className="text-2xl font-bold text-purple-400">
+                                        {((precision - 0.5) * 40).toFixed(1)} dB
+                                    </div>
+                                    <div className="text-[10px] text-gray-400 uppercase tracking-wider">Processing Gain</div>
                                 </div>
                             </div>
                         </div>

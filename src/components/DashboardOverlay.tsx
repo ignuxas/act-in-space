@@ -177,90 +177,128 @@ function TutorialModal() {
                             exit={{ opacity: 0, x: -20 }}
                             className="absolute inset-0 p-8 flex gap-8 items-center"
                         >
-                            <div className="w-1/2 space-y-4">
+                            <div className="w-1/3 space-y-4">
                                 <h3 className="text-lg font-bold text-cyan-300">3. Delay-Doppler Map (DDM)</h3>
                                 <p className="text-sm text-gray-300 leading-relaxed">
-                                    The scattered power is integrated over the Delay (τ) and Doppler (f_D) surface.
+                                    The scattered power is mapped against Delay (τ) and Doppler (f_D).
                                     <br/><br/>
-                                    This creates the characteristic "Horseshoe" shape visible in <strong>Fig 4A/B</strong>.
+                                    <strong>Correlation Peaks:</strong> Ships reflect signals coherently, creating sharp "mountain" peaks (Fig 4A) that stand out against the ocean noise floor.
                                     <br/><br/>
-                                    Ships appear as bright correlation peaks distinct from the ocean clutter.
+                                    <strong>Visual:</strong> See how the chaotic noise floor resolves into a clear signal spike as integration time increases.
                                 </p>
                             </div>
-                            <div className="w-1/2 h-full bg-black/20 rounded-xl border border-white/10 relative overflow-hidden flex items-center justify-center p-4">
-                                {/* DDM Integration Animation */}
-                                <div className="relative w-full h-full flex items-end justify-center">
-                                     <svg viewBox="0 0 300 200" className="w-full h-full overflow-visible">
-                                        {/* Axes */}
-                                        <line x1="30" y1="180" x2="280" y2="180" stroke="white" strokeWidth="1" />
-                                        <line x1="30" y1="180" x2="30" y2="20" stroke="white" strokeWidth="1" />
-                                        <text x="270" y="195" fill="white" fontSize="10">Delay</text>
-                                        <text x="10" y="30" fill="white" fontSize="10">Power</text>
+                            <div className="w-2/3 h-full bg-black/20 rounded-xl border border-white/10 relative overflow-hidden flex items-center justify-center p-4">
+                                <div className="relative w-full h-full">
+                                     <svg viewBox="-50 -50 400 350" className="w-full h-full overflow-visible" style={{transform: 'rotateX(10deg)'}}>
+                                        {/* 3D Waterfall Plot: Slices from Back to Front */}
+                                        {Array.from({ length: 8 }).map((_, i) => {
+                                            // 3D Projection Math
+                                            const depth = 7 - i; // 0 is front
+                                            const offsetX = depth * 35; // Shift Right for depth
+                                            const offsetY = depth * -25; // Shift Up for depth
+                                            const baseY = 250 + offsetY;
+                                            const startX = -300 + offsetX; // Extend WAY out (infinite feel)
+                                            const endX = 600 + offsetX;
+                                            
+                                            // Peak Logic
+                                            const peakX = 150 + offsetX;
+                                            const peakHeight = 60;
 
-                                    {/* Phase 1: Noisy individual samples (Grey lines aligned as peaks) */}
-                                    {[0, 1, 2, 3, 4].map(i => {
-                                        const randomStart = (i - 2) * 60; // Larger offsets
-                                        
-                                        // Varied heights
-                                        const heights = [45, 60, 35, 55, 40];
-                                        const peakHeight = heights[i];
-                                        const baseline = 100 + (i * 20); 
-                                        const peakY = baseline - peakHeight;
-                                        
-                                        // Extended lines: start far left (-100) end far right (400) relative to center
-                                        // M -100 baseline L 125 baseline C ... 185 baseline L 400 baseline
-                                        const shapeD = `M -100 ${baseline} L 125 ${baseline} C 145 ${baseline}, 145 ${peakY}, 155 ${peakY} C 165 ${peakY}, 165 ${baseline}, 185 ${baseline} L 400 ${baseline}`;
+                                            // Shift Logic: Alternate left/right shifts for the "Misaligned" state
+                                            // Fixed pseudo-random based on index to avoid hydration mismatch
+                                            const shiftAmount = ((i * 37) % 100) - 50 + (i % 2 === 0 ? 60 : -60);
+                                            const shiftedPeakX = peakX + shiftAmount;
 
-                                        return (
-                                            <motion.path
-                                                key={`sample-${i}`}
-                                                d={shapeD}
-                                                fill="none"
-                                                stroke="#666" // Grey lines
-                                                strokeWidth="1.5"
-                                                style={{ opacity: 0.5 }}
-                                                initial={{ x: randomStart, opacity: 0 }}
-                                                animate={{ 
-                                                    x: [randomStart, randomStart, 0, 0], // 1. Dispersed -> 2. Aligned
-                                                    opacity: [0, 0.6, 0.6, 0.2] // Fade out slightly when cyan appears
-                                                }} 
-                                                transition={{ 
-                                                    duration: 6, 
-                                                    times: [0, 0.2, 0.6, 0.9],
-                                                    ease: ["linear", "circOut", "linear"] // Fast then slow alignment
-                                                }}
-                                            />
-                                        )
-                                    })}
+                                            // PATH GENERATION
+                                            // 1. Aligned Path (The Target)
+                                            const alignedD = `M ${startX} ${baseY} 
+                                                L ${peakX - 40} ${baseY} 
+                                                C ${peakX - 20} ${baseY}, ${peakX - 20} ${baseY - peakHeight * 1.5}, ${peakX} ${baseY - peakHeight} 
+                                                C ${peakX + 20} ${baseY - peakHeight * 1.5}, ${peakX + 20} ${baseY}, ${peakX + 40} ${baseY} 
+                                                L ${endX} ${baseY}`;
+                                            
+                                            // 2. Shifted Path (The Start)
+                                            // Note: Control points move with the peak
+                                            const shiftedD = `M ${startX} ${baseY} 
+                                                L ${shiftedPeakX - 40} ${baseY} 
+                                                C ${shiftedPeakX - 20} ${baseY}, ${shiftedPeakX - 20} ${baseY - peakHeight * 1.5}, ${shiftedPeakX} ${baseY - peakHeight} 
+                                                C ${shiftedPeakX + 20} ${baseY - peakHeight * 1.5}, ${shiftedPeakX + 20} ${baseY}, ${shiftedPeakX + 40} ${baseY} 
+                                                L ${endX} ${baseY}`;
 
-                                    {/* Phase 2: Coherent Sum (Huge Cyan Line on top) */}
-                                    <motion.path
-                                        // Drawn at the front-most baseline (approx 180) with extended lines
-                                        d="M -100 180 L 115 180 C 135 180, 140 30, 155 30 C 170 30, 175 180, 195 180 L 400 180"
-                                        fill="none"
-                                        stroke="#00ffff"
-                                        strokeWidth="4"
-                                        initial={{ pathLength: 0, opacity: 0 }}
-                                        animate={{ 
-                                            pathLength: [0, 0, 1, 1], 
-                                            opacity: [0, 0, 1, 1] 
-                                        }}
-                                        transition={{ 
-                                            duration: 6, 
-                                            times: [0, 0.6, 0.8, 1], // Appears after alignment
-                                            repeat: Infinity,
-                                            repeatDelay: 1
-                                        }}
-                                    />
-                                        
+                                            const isCenterSlice = i === 4;
+
+                                            return (
+                                                <g key={i}>
+                                                    {/* Floor Line (Static) */}
+                                                    <path 
+                                                        d={`M ${startX} ${baseY} L ${endX} ${baseY}`} 
+                                                        stroke="rgba(255,255,255,0.05)" 
+                                                        strokeWidth="1" 
+                                                        strokeDasharray="4 4" 
+                                                        fill="none"
+                                                    />
+                                                    
+                                                    {/* The Wobbly Signal Line */}
+                                                    <motion.path
+                                                        fill="rgba(0,0,0,0.5)" // Semi-transparent black fill
+                                                        stroke={isCenterSlice ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.3)"}
+                                                        strokeWidth={1.5}
+                                                        
+                                                        initial={{ d: shiftedD }}
+                                                        animate={{ d: [shiftedD, shiftedD, alignedD, alignedD] }}
+                                                        transition={{
+                                                            duration: 6,
+                                                            times: [0, 0.2, 0.5, 1], // Wait, then Align, the Hold
+                                                            repeat: Infinity,
+                                                            repeatDelay: 2
+                                                        }}
+                                                    />
+                                                </g>
+                                            )
+                                        })}
+
+                                        {/* THE HUGE LINE: Integrated Coherent Sum */}
+                                        {/* Drawn on top (overlay), matching the geometry of the center slice (i=4) */}
+                                        <motion.path
+                                            d={`M ${-300 + (3 * 35)} ${250 + (3 * -25) - 5} 
+                                                L ${150 + (3 * 35) - 40} ${250 + (3 * -25) - 5}
+                                                C ${150 + (3 * 35) - 20} ${250 + (3 * -25) - 5}, 
+                                                  ${150 + (3 * 35) - 20} ${250 + (3 * -25) - 120}, 
+                                                  ${150 + (3 * 35)} ${250 + (3 * -25) - 90} 
+                                                C ${150 + (3 * 35) + 20} ${250 + (3 * -25) - 120}, 
+                                                  ${150 + (3 * 35) + 20} ${250 + (3 * -25) - 5}, 
+                                                  ${150 + (3 * 35) + 40} ${250 + (3 * -25) - 5}
+                                                L ${600 + (3 * 35)} ${250 + (3 * -25) - 5}`}
+                                                
+                                            fill="none"
+                                            stroke="#00ffff"
+                                            strokeWidth="5"
+                                            strokeLinecap="round"
+                                            filter="drop-shadow(0 0 8px #00ffff)"
+                                            
+                                            initial={{ pathLength: 0, opacity: 0 }}
+                                            animate={{ pathLength: 1, opacity: 1 }}
+                                            transition={{
+                                                duration: 1.5,
+                                                delay: 3, // Wait for alignment (which happens at t=0.5 of 6s -> 3s)
+                                                repeat: Infinity,
+                                                repeatDelay: 6.5 // 6s duration + 2s delay - 1.5s active? 
+                                                // Loop cycle: 6s + 2s = 8s total cycle for lines.
+                                                // We want this to trigger every 8s.
+                                            }}
+                                        />
                                         <motion.text 
-                                            x="180" y="40" fill="#00ffff" fontSize="12" fontWeight="bold"
+                                            x="300" y="50" fill="#00ffff" fontSize="14" fontWeight="bold" fontFamily="monospace"
                                             initial={{ opacity: 0 }}
-                                            animate={{ opacity: [0, 0, 1, 0] }}
-                                            transition={{ duration: 6, repeat: Infinity, repeatDelay: 1 }}
+                                            animate={{ opacity: [0, 1, 0] }}
+                                            transition={{ delay: 3, duration: 3, repeat: Infinity, repeatDelay: 5 }}
                                         >
-                                            INTEGRATED SIGNAL
+                                            COHERENT GAIN +12dB
                                         </motion.text>
+
+                                        {/* Axis Labels floated in 3D space */}
+                                        <text x="350" y="280" fill="gray" fontSize="10" transform="rotate(-15)">Delay (τ)</text>
+                                        <text x="-20" y="100" fill="gray" fontSize="10" transform="rotate(-15)">Doppler (fD)</text>
                                      </svg>
                                 </div>
                             </div>

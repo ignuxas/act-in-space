@@ -2,7 +2,7 @@
 
 import React, { useRef, useMemo, useEffect, useState } from 'react'
 import { Canvas, useFrame, useLoader, extend } from '@react-three/fiber'
-import { OrbitControls, Html, Line } from '@react-three/drei'
+import { OrbitControls, Html, Line, useTexture } from '@react-three/drei'
 import * as THREE from 'three'
 import { useStore } from '@/store/useStore'
 import * as satellite from 'satellite.js'
@@ -33,6 +33,58 @@ function createCircleTexture() {
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, 32, 32);
   
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function createDataEarthTexture() {
+  if (typeof document === 'undefined') return new THREE.Texture();
+  const canvas = document.createElement('canvas');
+  canvas.width = 1024;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d');
+  if(!ctx) return new THREE.Texture();
+
+  // 1. Deep Ocean Background
+  const gradient = ctx.createLinearGradient(0, 0, 0, 512);
+  gradient.addColorStop(0, '#020617'); // Dark Slate
+  gradient.addColorStop(0.5, '#0f172a'); // Slightly lighter middle
+  gradient.addColorStop(1, '#020617');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, 1024, 512);
+
+  // 2. Grid Lines
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(56, 189, 248, 0.15)'; // Sky Blue / Cyan faint
+  
+  // Longitude
+  for (let x = 0; x <= 1024; x += 48) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, 512);
+    ctx.stroke();
+  }
+  
+  // Latitude
+  for (let y = 0; y <= 512; y += 48) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(1024, y);
+    ctx.stroke();
+  }
+  
+  // 3. Digital Noise / Data Specks (Fake Continents)
+  ctx.fillStyle = 'rgba(56, 189, 248, 0.1)';
+  for (let i = 0; i < 2000; i++) {
+      const x = Math.random() * 1024;
+      const y = Math.random() * 512;
+      // Bias towards center (Equator-ish)
+      if (Math.abs(y - 256) < 150 || Math.random() > 0.8) {
+        ctx.fillRect(x, y, 2, 2);
+      }
+  }
+
   const texture = new THREE.CanvasTexture(canvas);
   texture.needsUpdate = true;
   return texture;
@@ -159,18 +211,19 @@ void main() {
 
 // --- Components ---
 
-function TexturedEarth() {
-   const [colorMap] = useLoader(THREE.TextureLoader, [
-       'https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg'       
-   ])
+function RealisticEarth() {
+   // High-availability texture from Wikimedia (2K resolution)
+   const colorMap = useTexture('https://upload.wikimedia.org/wikipedia/commons/c/c3/Solarsystemscope_texture_2k_earth_daymap.jpg')
    
    return (
        <mesh>
-           <sphereGeometry args={[SCENE_EARTH_RADIUS, 48, 48]} />
-           <meshPhongMaterial
+           <sphereGeometry args={[SCENE_EARTH_RADIUS, 64, 64]} />
+           <meshStandardMaterial
               map={colorMap} 
-              shininess={15}
-              specular={new THREE.Color(0x222222)}
+              roughness={0.7} // Earth is not super shiny (ocean is, land isn't) - avg
+              metalness={0.1}
+              emissive="#081020" // Subtle night-side glow
+              emissiveIntensity={0.15}
            />
        </mesh>
    )
@@ -462,12 +515,14 @@ function OrbitsAndSatellites({ targetWorldPos }: { targetWorldPos: THREE.Vector3
             activeSats.sort((a, b) => a.dist - b.dist);
             const top2 = activeSats.slice(0, 2);
             
-            // First, HIDE ALL (Move to center of earth)
+            // First, Keep everything but DIM them
             for(let i=0; i<systems.length; i++) {
-                currentPositions[i*3] = 0; currentPositions[i*3+1] = 0; currentPositions[i*3+2] = 0;
+                // DON'T hide completely, keep them drifting but faint
+                // We keep their calculated position from part 1, do nothing here.
+                // Just let them be. The active ones will get overridden below.
             }
 
-            // Now show and position the top 2
+            // Now Highlight the top 2
             top2.forEach((sat, idx) => {
                 let visualPos = sat.pos.clone();
 
@@ -484,6 +539,9 @@ function OrbitsAndSatellites({ targetWorldPos }: { targetWorldPos: THREE.Vector3
                 currentPositions[sat.index*3] = visualPos.x
                 currentPositions[sat.index*3+1] = visualPos.y
                 currentPositions[sat.index*3+2] = visualPos.z
+                
+                // Color override? We iterate colors buffer elsewhere?
+                // For now, geometry position update is enough to ensure they are on top
                 
                 newSignals.push({ satPos: visualPos, targetPos: sat.targetPos })
             })
@@ -585,8 +643,14 @@ function SceneContent() {
             <OrbitsAndSatellites targetWorldPos={targetWorldPos} />
             
             <group ref={earthGroup}>
-                <React.Suspense fallback={null}>
-                    <TexturedEarth />
+                <React.Suspense fallback={
+                    // Wireframe fallback while Real Texture loads
+                    <mesh> 
+                        <sphereGeometry args={[SCENE_EARTH_RADIUS, 32, 32]} />
+                        <meshBasicMaterial color="#001133" wireframe opacity={0.2} transparent />
+                    </mesh>
+                }>
+                    <RealisticEarth />
                 </React.Suspense>
                 
                 {/* Heatmap overlay - Only show if threat selected */}

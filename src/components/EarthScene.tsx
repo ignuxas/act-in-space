@@ -565,22 +565,24 @@ function OrbitsAndSatellites({ targetWorldPos }: { targetWorldPos: THREE.Vector3
                 />
             ))}
 
-            <points ref={pointsRef}>
-                <bufferGeometry>
-                    <bufferAttribute attach="attributes-position" count={positions.length / 3} array={positions} itemSize={3} />
-                    <bufferAttribute attach="attributes-color" count={colors.length / 3} array={colors} itemSize={3} />
-                </bufferGeometry>
-                <pointsMaterial 
-                    map={texture}
-                    size={0.5} // Large size (approx 1.0 visual scale)
-                    sizeAttenuation
-                    vertexColors
-                    transparent
-                    opacity={1.0}
-                    blending={THREE.AdditiveBlending}
-                    depthWrite={false}
-                />
-            </points>
+            {systems.length > 0 && (
+                <points ref={pointsRef}>
+                    <bufferGeometry>
+                        <bufferAttribute attach="attributes-position" count={positions.length / 3} array={positions} itemSize={3} />
+                        <bufferAttribute attach="attributes-color" count={colors.length / 3} array={colors} itemSize={3} />
+                    </bufferGeometry>
+                    <pointsMaterial 
+                        map={texture}
+                        size={0.5} // Large size (approx 1.0 visual scale)
+                        sizeAttenuation
+                        vertexColors
+                        transparent
+                        opacity={1.0}
+                        blending={THREE.AdditiveBlending}
+                        depthWrite={false}
+                    />
+                </points>
+            )}
 
             {signals.map((sig, i) => (
                 <Line

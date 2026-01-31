@@ -305,6 +305,62 @@ export default function DashboardOverlay() {
   
   const [time, setTime] = useState('')
   const [activeTab, setActiveTab] = useState('SYSTEMS')
+  const [logs, setLogs] = useState<string[]>([
+    "12:00:01 SYS_BOOT_SEQ_INIT",
+    "12:00:02 LNA_GAIN_SET: 24dB",
+    "12:00:02 LOCK_ACQ: PRN 12, 14, 22",
+    "12:00:03 TRACKING_LOOP_ENGAGED",
+    "12:00:04 ANOMALY_SCAN_ACTIVE",
+  ])
+  const [satellites, setSatellites] = useState([
+    { id: 'GPS-12', el: 62, az: 110, snr: 45 },
+    { id: 'GAL-04', el: 45, az: 230, snr: 42 },
+    { id: 'GPS-24', el: 81, az: 15, snr: 48 },
+    { id: 'GLO-18', el: 22, az: 310, snr: 38 },
+  ])
+  const logsEndRef = useRef<HTMLDivElement>(null)
+
+  const addLog = (msg: string) => {
+    const timeStr = new Date().toISOString().split('T')[1].split('.')[0]
+    setLogs(prev => [...prev.slice(-19), `${timeStr} ${msg}`])
+  }
+
+  // Scroll to bottom of logs
+  useEffect(() => {
+    logsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [logs])
+
+  // Simulate Satellite Live Data
+  useEffect(() => {
+    const interval = setInterval(() => {
+        setSatellites(prev => prev.map(sat => ({
+            ...sat,
+            snr: Math.max(30, Math.min(55, sat.snr + (Math.random() - 0.5) * 4)), // Jitter SNR
+            el: sat.el + (Math.random() * 0.02), // Slow drift
+            az: sat.az + (Math.random() * 0.02)
+        })))
+    }, 500)
+    return () => clearInterval(interval)
+  }, [])
+
+  // System Event Logging
+  useEffect(() => {
+      // Periodic "Heartbeat" logs
+      const interval = setInterval(() => {
+          if (Math.random() > 0.7) {
+              const msgs = ["BUFFER_FLUSH_OK", "TEMP_bg: 24.2C", "SYNC_CHECK", "MEM_ALLOC_OK", "UPLINK_STABLE"]
+              addLog(msgs[Math.floor(Math.random() * msgs.length)])
+          }
+      }, 4000)
+      return () => clearInterval(interval)
+  }, [])
+
+  // Log User Interactions
+  useEffect(() => { addLog(`PRECISION_ADJ: ${(precision*100).toFixed(0)}%`) }, [precision])
+  useEffect(() => { addLog(`WX_INTERFERENCE_ADJ: ${(weather*100).toFixed(0)}%`) }, [weather])
+  useEffect(() => { addLog(`FUSION_LAYER: ${showFusion ? 'ENABLED' : 'DISABLED'}`) }, [showFusion])
+  useEffect(() => { addLog(`ANOMALY_OVERLAY: ${showAnomalies ? 'ENABLED' : 'DISABLED'}`) }, [showAnomalies])
+  useEffect(() => { if(isAnalysisOpen) addLog("ANALYSIS_MODAL_OPEN: SAT-GNSS-4042") }, [isAnalysisOpen])
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -452,47 +508,44 @@ export default function DashboardOverlay() {
                         </div>
 
                         <h2 className="text-xs font-semibold text-blue-300 uppercase mb-3 tracking-widest mt-4">Visible Satellites</h2>
-                        {/* Mock Satellite Data */}
-                        {[
-                            { id: 'GPS-12', el: 62, az: 110, snr: 45 },
-                            { id: 'GAL-04', el: 45, az: 230, snr: 42 },
-                            { id: 'GPS-24', el: 81, az: 15, snr: 48 },
-                            { id: 'GLO-18', el: 22, az: 310, snr: 38 },
-                        ].map((sat) => (
+                        {satellites.map((sat) => (
                             <div key={sat.id} className="space-y-1">
                                 <div className="flex justify-between text-xs text-gray-300 font-mono">
                                     <span>{sat.id}</span>
-                                    <span className="text-[10px] text-gray-500">Az:{sat.az}° El:{sat.el}°</span>
+                                    <span className="text-[10px] text-gray-500">Az:{sat.az.toFixed(1)}° El:{sat.el.toFixed(1)}°</span>
                                 </div>
                                 <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
                                     <div 
-                                        className="h-full bg-gradient-to-r from-blue-500 to-cyan-400" 
-                                        style={{ width: `${(sat.snr/50)*100}%` }}
+                                        className="h-full bg-gradient-to-r from-blue-500 to-cyan-400 transition-all duration-500 ease-out" 
+                                        style={{ width: `${(sat.snr/55)*100}%` }}
                                     />
                                 </div>
-                                <div className="text-[8px] text-right text-gray-500 font-mono leading-none">{sat.snr} dBHz</div>
+                                <div className="text-[8px] text-right text-gray-500 font-mono leading-none">{sat.snr.toFixed(1)} dBHz</div>
                             </div>
                         ))}
                     </div>
                 )}
 
                 {activeTab === 'DATA LOGS' && (
-                     <div className="bg-black/40 backdrop-blur-md border border-white/10 rounded-xl p-3 font-mono text-[10px] text-gray-400 h-96 overflow-y-auto">
-                        <div className="text-emerald-500 mb-2 border-b border-emerald-500/20 pb-1">[SYSTEM DIAGNOSTICS]</div>
-                        <div className="space-y-1.5">
-                            {/* Static logs for demo */}
-                            <div className="opacity-50">12:00:01 REF_CALIB_START</div>
-                            <div className="opacity-60">12:00:02 LNA_GAIN_SET: 24dB</div>
-                            <div className="opacity-70">12:00:02 LOCK_ACQ PRN 12</div>
-                            <div className="opacity-80">12:00:03 TRACKING_LOOP_ENGAGED</div>
-                            <div className="text-white">12:00:04 ANOMALY_SCAN_INIT</div>
-                            <div className="text-cyan-300">12:00:04 REFLECTION_DETECTED [CONF: 98%]</div>
-                            <div className="text-orange-300">12:00:05 DDM_PROC_COMPLETE</div>
-                            <div className="opacity-60">12:00:06 DATA_LINK_ESTABLISHED</div>
-                            <div className="opacity-50">12:00:06 BUFFER_FLUSH</div>
-                            <div className="text-red-400">12:00:07 SPECKLE_NOISE_WARN [-3dB]</div>
-                            <div className="opacity-70">12:00:08 RECALC_CRB_BOUNDS</div>
-                            <div className="text-white animate-pulse">_</div>
+                     <div className="bg-black/40 backdrop-blur-md border border-white/10 rounded-xl p-3 font-mono text-[10px] text-gray-400 h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
+                        <div className="text-emerald-500 mb-2 border-b border-emerald-500/20 pb-1 flex justify-between">
+                            <span>[SYSTEM DIAGNOSTICS]</span>
+                            <span className="animate-pulse">●</span>
+                        </div>
+                        <div className="space-y-1.5 flex flex-col justify-end min-h-[300px]">
+                            {logs.map((log, i) => (
+                                <div key={i} className={cn(
+                                    "break-words",
+                                    log.includes('WARN') ? "text-orange-400" :
+                                    log.includes('ALERT') ? "text-red-400" :
+                                    log.includes('DETECTED') ? "text-cyan-300" :
+                                    "text-gray-400"
+                                )}>
+                                    <span className="opacity-50 mr-2">{log.split(' ')[0]}</span>
+                                    <span className="opacity-90">{log.substring(log.indexOf(' ')+1)}</span>
+                                </div>
+                            ))}
+                            <div ref={logsEndRef} />
                         </div>
                      </div>
                 )}

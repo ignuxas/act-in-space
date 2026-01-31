@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useStore } from '@/store/useStore'
 import { cn } from '@/lib/utils'
 
+
 function TutorialModal() {
   const { setTutorialOpen } = useStore()
   const [step, setStep] = useState(1)
@@ -296,104 +297,6 @@ function TutorialModal() {
   )
 }
 
-function DDMGraph() {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-
-    let frame = 0
-    let animId: number
-
-    const animate = () => {
-      frame++
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
-      
-      // Background Grid
-      ctx.strokeStyle = '#ffffff20'
-      ctx.lineWidth = 0.5
-      // ... (drawing logic simplified for brevity in thought but robust in implementation)
-      
-      // Simulate 3D DDM (Delay Doppler Map)
-      const slices = 12
-      
-      for (let z = 0; z < slices; z++) {
-        // Perspective calc
-        const depth = z / slices
-        const scale = 1.0 - (depth * 0.3)
-        const yOffset = (z * 6) + 20
-        const xOffset = (z * 15)
-        
-        ctx.beginPath()
-        
-        let alpha = (1.0 - depth) * 0.8
-        ctx.strokeStyle = `rgba(0, 255, 255, ${alpha})`
-        ctx.lineWidth = 1.2
-        
-        let first = true
-        
-        // Draw slice
-        const points = 60
-        for (let i = 0; i <= points; i++) {
-            const pct = i / points
-            const x = xOffset + pct * (canvas.width - 60) * scale
-            
-            // Peak Functions
-            // 1. Main Peak (Signal)
-            const p1 = Math.exp(-Math.pow((pct - 0.35) * 12, 2)) * 50
-            
-            // 2. Secondary Peak (Reflection/Noise)
-            // Oscillates
-            const osc = Math.sin(frame * 0.05 + z * 0.5) * 5
-            const p2 = Math.exp(-Math.pow((pct - 0.7) * 8, 2)) * (30 + osc)
-            
-            // Gap/Trench (The characteristic drop in Fig 4A)
-            const base = 0
-            
-            const height = p1 + p2
-            const y = (canvas.height - 20) - yOffset - (height * scale)
-            
-            if (first) {
-                ctx.moveTo(x, y)
-                first = false
-            } else {
-                ctx.lineTo(x, y)
-            }
-        }
-        ctx.stroke()
-        
-        // Draw "Zero Delay" dashed line cutting through
-        if (z === 5) {
-             ctx.beginPath()
-             ctx.strokeStyle = '#ffaa0080'
-             ctx.setLineDash([2, 4])
-             ctx.moveTo(xOffset + 0.5 * (canvas.width - 60) * scale, (canvas.height - 20) - yOffset)
-             ctx.lineTo(xOffset + 0.5 * (canvas.width - 60) * scale, (canvas.height - 20) - yOffset - 60)
-             ctx.stroke()
-             ctx.setLineDash([])
-        }
-      }
-      
-      animId = requestAnimationFrame(animate)
-    }
-    animate()
-    return () => cancelAnimationFrame(animId)
-  }, [])
-
-  return (
-    <div className="bg-white/5 p-3 rounded-lg border border-white/5 mb-4">
-        <div className="flex justify-between items-end mb-2">
-            <span className="text-[10px] text-gray-400 font-mono tracking-widest">DELAY-DOPPLER MAP</span>
-            <span className="text-[8px] text-cyan-500 font-mono">FIG 4.A-REF</span>
-        </div>
-        <canvas ref={canvasRef} width={340} height={140} className="w-full h-[140px]" />
-    </div>
-  )
-}
-
 export default function DashboardOverlay() {
   const { 
     precision, weather, showFusion, showAnomalies, alerts, isAnalysisOpen, isTutorialOpen,
@@ -401,6 +304,7 @@ export default function DashboardOverlay() {
   } = useStore()
   
   const [time, setTime] = useState('')
+  const [activeTab, setActiveTab] = useState('SYSTEMS')
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -433,88 +337,165 @@ export default function DashboardOverlay() {
       <div className="flex flex-1 mt-8 gap-6 overflow-hidden">
         
         {/* Left Panel: Metrics & Controls */}
-        <div className="w-80 space-y-4 pointer-events-auto overflow-y-auto pr-2 pb-4 scrollbar-hide">
-            {/* Metrics */}
-            <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-4 text-white hover:border-white/20 transition-colors">
-                <h2 className="text-xs font-semibold text-blue-300 uppercase mb-3 tracking-widest">Real-time Metrics</h2>
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <div className="text-2xl font-bold text-cyan-400">98.2%</div>
-                        <div className="text-[10px] text-gray-400 uppercase tracking-wider">Detection Rate</div>
-                    </div>
-                    <div>
-                        <div className="text-2xl font-bold text-emerald-400">12km²</div>
-                        <div className="text-[10px] text-gray-400 uppercase tracking-wider">Coverage</div>
-                    </div>
-                    <div className="col-span-2">
-                        <div className="text-2xl font-bold text-purple-400">+14%</div>
-                        <div className="text-[10px] text-gray-400 uppercase tracking-wider">Precision Gain</div>
-                    </div>
-                </div>
+        <div className="w-80 flex flex-col gap-4 pointer-events-auto">
+            {/* Tab Navigation */}
+            <div className="flex p-1 bg-white/5 backdrop-blur-md border border-white/10 rounded-lg">
+                {['SYSTEMS', 'CONSTELLATION', 'DATA LOGS'].map((tab) => (
+                    <button
+                        key={tab}
+                        onClick={() => setActiveTab(tab)}
+                        className={cn(
+                            "flex-1 py-1.5 text-[10px] font-bold tracking-wider rounded transition-all",
+                            activeTab === tab 
+                                ? "bg-cyan-500/20 text-cyan-300 shadow-sm border border-cyan-500/30" 
+                                : "text-gray-400 hover:text-white hover:bg-white/5"
+                        )}
+                    >
+                        {tab}
+                    </button>
+                ))}
             </div>
 
-            {/* Controls */}
-            <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-4 text-white space-y-6 hover:border-white/20 transition-colors">
-                <h2 className="text-xs font-semibold text-blue-300 uppercase mb-2 tracking-widest">System Controls</h2>
-                
-                {/* Precision Slider */}
-                <div className="space-y-2">
-                    <div className="flex justify-between text-xs text-gray-300">
-                        <span className="uppercase tracking-wider">Signal Precision</span>
-                        <span className="font-mono">{Math.round(precision * 100)}%</span>
-                    </div>
-                    <input 
-                        type="range" min="0" max="1" step="0.01" value={precision}
-                        onChange={(e) => setPrecision(parseFloat(e.target.value))}
-                        className="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-cyan-500 hover:accent-cyan-400"
-                    />
-                </div>
-
-                {/* Weather Slider */}
-                <div className="space-y-2">
-                    <div className="flex justify-between text-xs text-gray-300">
-                        <span className="uppercase tracking-wider">Weather Interference</span>
-                        <span className="font-mono">{Math.round(weather * 100)}%</span>
-                    </div>
-                    <input 
-                        type="range" min="0" max="1" step="0.01" value={weather}
-                        onChange={(e) => setWeather(parseFloat(e.target.value))}
-                        className="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500 hover:accent-blue-400"
-                    />
-                </div>
-
-                {/* Toggles */}
-                <div className="space-y-3 pt-4 border-t border-white/10">
-                    <div className="flex items-center justify-between group cursor-pointer" onClick={toggleFusion}>
-                        <span className="text-sm text-gray-300 group-hover:text-white transition-colors">Data Fusion</span>
-                        <div 
-                            className={cn(
-                                "w-10 h-5 rounded-full transition-colors relative",
-                                showFusion ? "bg-cyan-600" : "bg-gray-700"
-                            )}
-                        >
-                            <div className={cn(
-                                "absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform",
-                                showFusion ? "translate-x-5" : "translate-x-0"
-                            )} />
+            <div className="overflow-y-auto pr-2 pb-4 scrollbar-hide space-y-4 max-h-[calc(100vh-250px)]">
+                {activeTab === 'SYSTEMS' && (
+                    <>
+                        {/* Metrics */}
+                        <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-4 text-white hover:border-white/20 transition-colors">
+                            <h2 className="text-xs font-semibold text-blue-300 uppercase mb-3 tracking-widest">Real-time Metrics</h2>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <div className="text-2xl font-bold text-cyan-400">98.2%</div>
+                                    <div className="text-[10px] text-gray-400 uppercase tracking-wider">Detection Rate</div>
+                                </div>
+                                <div>
+                                    <div className="text-2xl font-bold text-emerald-400">12km²</div>
+                                    <div className="text-[10px] text-gray-400 uppercase tracking-wider">Coverage</div>
+                                </div>
+                                <div className="col-span-2">
+                                    <div className="text-2xl font-bold text-purple-400">+14%</div>
+                                    <div className="text-[10px] text-gray-400 uppercase tracking-wider">Precision Gain</div>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                    <div className="flex items-center justify-between group cursor-pointer" onClick={toggleAnomalies}>
-                        <span className="text-sm text-gray-300 group-hover:text-white transition-colors">Show Anomalies</span>
-                        <div 
-                            className={cn(
-                                "w-10 h-5 rounded-full transition-colors relative",
-                                showAnomalies ? "bg-orange-600" : "bg-gray-700"
-                            )}
-                        >
-                            <div className={cn(
-                                "absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform",
-                                showAnomalies ? "translate-x-5" : "translate-x-0"
-                            )} />
-                        </div>
-                    </div>
-                </div>
 
+                        {/* Controls */}
+                        <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-4 text-white space-y-6 hover:border-white/20 transition-colors">
+                            <h2 className="text-xs font-semibold text-blue-300 uppercase mb-2 tracking-widest">System Controls</h2>
+                            
+                            {/* Precision Slider */}
+                            <div className="space-y-2">
+                                <div className="flex justify-between text-xs text-gray-300">
+                                    <span className="uppercase tracking-wider">Signal Precision</span>
+                                    <span className="font-mono">{Math.round(precision * 100)}%</span>
+                                </div>
+                                <input 
+                                    type="range" min="0" max="1" step="0.01" value={precision}
+                                    onChange={(e) => setPrecision(parseFloat(e.target.value))}
+                                    className="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-cyan-500 hover:accent-cyan-400"
+                                />
+                            </div>
+
+                            {/* Weather Slider */}
+                            <div className="space-y-2">
+                                <div className="flex justify-between text-xs text-gray-300">
+                                    <span className="uppercase tracking-wider">Weather Interference</span>
+                                    <span className="font-mono">{Math.round(weather * 100)}%</span>
+                                </div>
+                                <input 
+                                    type="range" min="0" max="1" step="0.01" value={weather}
+                                    onChange={(e) => setWeather(parseFloat(e.target.value))}
+                                    className="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500 hover:accent-blue-400"
+                                />
+                            </div>
+
+                            {/* Toggles */}
+                            <div className="space-y-3 pt-4 border-t border-white/10">
+                                <div className="flex items-center justify-between group cursor-pointer" onClick={toggleFusion}>
+                                    <span className="text-sm text-gray-300 group-hover:text-white transition-colors">Data Fusion</span>
+                                    <div 
+                                        className={cn(
+                                            "w-10 h-5 rounded-full transition-colors relative",
+                                            showFusion ? "bg-cyan-600" : "bg-gray-700"
+                                        )}
+                                    >
+                                        <div className={cn(
+                                            "absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform",
+                                            showFusion ? "translate-x-5" : "translate-x-0"
+                                        )} />
+                                    </div>
+                                </div>
+                                <div className="flex items-center justify-between group cursor-pointer" onClick={toggleAnomalies}>
+                                    <span className="text-sm text-gray-300 group-hover:text-white transition-colors">Show Anomalies</span>
+                                    <div 
+                                        className={cn(
+                                            "w-10 h-5 rounded-full transition-colors relative",
+                                            showAnomalies ? "bg-orange-600" : "bg-gray-700"
+                                        )}
+                                    >
+                                        <div className={cn(
+                                            "absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform",
+                                            showAnomalies ? "translate-x-5" : "translate-x-0"
+                                        )} />
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </>
+                )}
+
+                {activeTab === 'CONSTELLATION' && (
+                    <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-4 space-y-4">
+                        <div className="flex justify-between items-center bg-white/5 p-2 rounded">
+                             <div className="text-xs text-gray-400">GDOP</div>
+                             <div className="text-lg font-mono font-bold text-emerald-400">1.2</div>
+                        </div>
+
+                        <h2 className="text-xs font-semibold text-blue-300 uppercase mb-3 tracking-widest mt-4">Visible Satellites</h2>
+                        {/* Mock Satellite Data */}
+                        {[
+                            { id: 'GPS-12', el: 62, az: 110, snr: 45 },
+                            { id: 'GAL-04', el: 45, az: 230, snr: 42 },
+                            { id: 'GPS-24', el: 81, az: 15, snr: 48 },
+                            { id: 'GLO-18', el: 22, az: 310, snr: 38 },
+                        ].map((sat) => (
+                            <div key={sat.id} className="space-y-1">
+                                <div className="flex justify-between text-xs text-gray-300 font-mono">
+                                    <span>{sat.id}</span>
+                                    <span className="text-[10px] text-gray-500">Az:{sat.az}° El:{sat.el}°</span>
+                                </div>
+                                <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                                    <div 
+                                        className="h-full bg-gradient-to-r from-blue-500 to-cyan-400" 
+                                        style={{ width: `${(sat.snr/50)*100}%` }}
+                                    />
+                                </div>
+                                <div className="text-[8px] text-right text-gray-500 font-mono leading-none">{sat.snr} dBHz</div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {activeTab === 'DATA LOGS' && (
+                     <div className="bg-black/40 backdrop-blur-md border border-white/10 rounded-xl p-3 font-mono text-[10px] text-gray-400 h-96 overflow-y-auto">
+                        <div className="text-emerald-500 mb-2 border-b border-emerald-500/20 pb-1">[SYSTEM DIAGNOSTICS]</div>
+                        <div className="space-y-1.5">
+                            {/* Static logs for demo */}
+                            <div className="opacity-50">12:00:01 REF_CALIB_START</div>
+                            <div className="opacity-60">12:00:02 LNA_GAIN_SET: 24dB</div>
+                            <div className="opacity-70">12:00:02 LOCK_ACQ PRN 12</div>
+                            <div className="opacity-80">12:00:03 TRACKING_LOOP_ENGAGED</div>
+                            <div className="text-white">12:00:04 ANOMALY_SCAN_INIT</div>
+                            <div className="text-cyan-300">12:00:04 REFLECTION_DETECTED [CONF: 98%]</div>
+                            <div className="text-orange-300">12:00:05 DDM_PROC_COMPLETE</div>
+                            <div className="opacity-60">12:00:06 DATA_LINK_ESTABLISHED</div>
+                            <div className="opacity-50">12:00:06 BUFFER_FLUSH</div>
+                            <div className="text-red-400">12:00:07 SPECKLE_NOISE_WARN [-3dB]</div>
+                            <div className="opacity-70">12:00:08 RECALC_CRB_BOUNDS</div>
+                            <div className="text-white animate-pulse">_</div>
+                        </div>
+                     </div>
+                )}
             </div>
         </div>
 

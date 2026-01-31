@@ -518,9 +518,9 @@ function SceneContent() {
     useEffect(() => {
         // Clear existing alerts to prevent duplicates on hot reload if needed, but 'addAlert' appends.
         // We'll just add them once.
-        const t1 = setTimeout(() => addAlert("Signal Intercepted: South Pacific (Point Nemo)", "warning", { lat: -48.9, lon: -123.4 }), 1000)
-        const t2 = setTimeout(() => addAlert("Jamming Detected: Baltic Sea", "critical", { lat: 55.0, lon: 20.0 }), 3000)
-        const t3 = setTimeout(() => addAlert("Spoofing Attempt: Black Sea", "critical", { lat: 43.0, lon: 35.0 }), 5000)
+        const t1 = setTimeout(() => addAlert("Unidentified Wake: South Pacific", "warning", { lat: -48.9, lon: -123.4 }), 1000)
+        const t2 = setTimeout(() => addAlert("Kelvin Wake Trace: Baltic Sea", "critical", { lat: 55.0, lon: 20.0 }), 3000)
+        const t3 = setTimeout(() => addAlert("Surface Texture Anomaly: Black Sea", "critical", { lat: 43.0, lon: 35.0 }), 5000)
         
         return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); }
     }, [addAlert])

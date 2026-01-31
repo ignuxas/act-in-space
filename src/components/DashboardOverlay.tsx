@@ -659,71 +659,71 @@ export default function DashboardOverlay() {
                         
                         {/* Mathematical Framework - Replacing Graph */}
                         <div className="space-y-3 mb-4">
-                            {/* Fisher Information Matrix */}
+                            {/* Kelvin Wake Analysis */}
                             <div className="bg-white/5 border border-white/10 rounded p-3 relative overflow-hidden">
                                 <div className="flex justify-between items-baseline mb-2">
-                                     <h4 className="text-[10px] text-cyan-400 font-bold tracking-widest">FISHER INFORMATION (SPECKLE)</h4>
-                                     <span className="text-[8px] text-gray-500 font-mono">EQ. 16</span>
+                                     <h4 className="text-[10px] text-cyan-400 font-bold tracking-widest">KELVIN WAKE ANALYSIS</h4>
+                                     <span className="text-[8px] text-gray-500 font-mono">HYDRODYNAMICS</span>
                                 </div>
                                 <div className="font-mono text-xs text-center text-white py-3 bg-black/20 rounded mb-2 border border-white/5 shadow-inner">
-                                     J_ij = Tr(Γ⁻¹ ∂Γ/∂θ_i Γ⁻¹ ∂Γ/∂θ_j)
+                                     θ_cusp = arcsin(1/3) ≈ 19.47°
                                 </div>
                                 <div className="text-[9px] text-gray-400 leading-relaxed text-justify">
-                                    Precision is limited by the stochastic nature of the scattered field covariances (<strong>Γ</strong>), not just thermal noise.
+                                    Doppler spectrum analysis reveals transverse and divergent wave components consistent with a moving hull.
                                 </div>
                             </div>
 
                             {/* Comparison Models */}
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="bg-white/5 border border-white/10 rounded p-2 opacity-60">
-                                     <div className="text-[8px] text-gray-500 uppercase mb-1">Standard (Lowe '02)</div>
-                                     <div className="font-mono text-white text-xs">σ ≈ 15.1 cm</div>
-                                     <div className="text-[8px] text-red-400 mt-1">Neglects Speckle</div>
+                                     <div className="text-[8px] text-gray-500 uppercase mb-1">Ocean Clutter</div>
+                                     <div className="font-mono text-white text-xs">Isotropic</div>
+                                     <div className="text-[8px] text-gray-400 mt-1">Random Roughness</div>
                                 </div>
                                 <div className="bg-emerald-900/10 border border-emerald-500/20 rounded p-2">
-                                     <div className="text-[8px] text-emerald-500 uppercase mb-1">CRB Metric (Current)</div>
-                                     <div className="font-mono text-emerald-300 text-xs">σ ≈ 62.0 cm</div>
-                                     <div className="text-[8px] text-emerald-500 mt-1">Realistic Limit (4x)</div>
+                                     <div className="text-[8px] text-emerald-500 uppercase mb-1">Wake Signature</div>
+                                     <div className="font-mono text-emerald-300 text-xs">Anisotropic</div>
+                                     <div className="text-[8px] text-emerald-500 mt-1">Directional Pattern</div>
                                 </div>
                             </div>
                         </div>
                         
-                        {/* CRB Analysis */}
+                        {/* Wake Metrics */}
                         <div className="bg-white/5 p-4 rounded-lg border border-white/10 space-y-3">
                             <div className="flex justify-between items-center text-xs text-gray-400 border-b border-white/10 pb-2">
-                                <span>CRB RANGE PRECISION MODEL</span>
-                                <span className="font-mono text-[10px]">REF: GERMAIN & RUFFINI '06</span>
+                                <span>WAKE GEOMETRY ESTIMATION</span>
+                                <span className="font-mono text-[10px]">RADAR CROSS SECTION</span>
                             </div>
                             
                             <div className="grid grid-cols-2 gap-4 text-xs">
                                 <div>
-                                    <div className="text-gray-500 mb-1">Elevation (ε)</div>
-                                    <div className="font-mono text-cyan-300">62.4°</div>
+                                    <div className="text-gray-500 mb-1">Vessel Speed (v)</div>
+                                    <div className="font-mono text-cyan-300">18.4 kts</div>
                                 </div>
                                 <div>
-                                    <div className="text-gray-500 mb-1">Range Error (σ_R)</div>
-                                    <div className="font-mono text-orange-300">0.92 m</div>
+                                    <div className="text-gray-500 mb-1">Wake Angle (&alpha;)</div>
+                                    <div className="font-mono text-orange-300">19.2°</div>
                                 </div>
                             </div>
 
                             <div className="bg-black/40 p-2 rounded border border-white/5">
                                 <div className="flex justify-between items-end mb-1">
-                                    <span className="text-gray-400">Altimetric Precision</span>
-                                    <span className="text-[10px] text-gray-500 italic">σ_h = σ_R / 2sin(ε)</span>
+                                    <span className="text-gray-400">Estimated Length</span>
+                                    <span className="text-[10px] text-gray-500 italic">L = v² / (g * Froude)</span>
                                 </div>
                                 <div className="text-2xl font-bold text-white font-mono">
-                                    { (0.92 / (2 * Math.sin(62.4 * Math.PI / 180))).toFixed(2) } m
+                                    142.5 m
                                 </div>
                                 <div className="text-[10px] text-emerald-400 mt-1 flex items-center gap-2">
                                      <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"/>
-                                     TSUNAMI DETECTABLE ({'>'}20cm)
+                                     VESSEL SIGNATURE CONFIRMED
                                 </div>
                             </div>
                         </div>
 
                         <div className="p-3 bg-cyan-950/30 border border-cyan-500/20 rounded text-xs text-cyan-200 leading-relaxed">
                             <strong className="text-cyan-400 block mb-1">AI INSIGHT</strong>
-                            Signal exhibits characteristics consistent with ship-borne GNSS interference. Speckle noise limits precision to ~0.5m (C-Band).
+                            Anomalous surface roughness detected. Coherent wake structure suggests a non-cooperative vessel moving NW. Dark Vessel Detection confidence: 94%.
                         </div>
                         
                         <div className="flex gap-3 pt-2">

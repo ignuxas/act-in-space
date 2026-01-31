@@ -399,49 +399,63 @@ function OrbitsAndSatellites({ targetWorldPos }: { targetWorldPos: THREE.Vector3
         
         const activeSats: {pos: THREE.Vector3, targetPos: THREE.Vector3, dist: number, index: number}[] = []
 
-        // 1. Update all satellite positions
+        // 1. Update all satellite positions based on TLE
         systems.forEach((sys, i) => {
             const pv = satellite.propagate(sys.satrec, now)
             if (pv.position && typeof pv.position !== 'boolean') {
                 const pos = eciToThree(pv.position as satellite.EciVec3<number>)
                 
-                // Update buffer
+                // Default: Show at real position
                 currentPositions[i*3] = pos.x
                 currentPositions[i*3+1] = pos.y
                 currentPositions[i*3+2] = pos.z
                 
+                // If we have a target, we need to calculate distances to find the best 2
                 if (targetWorldPos) {
                     const dist = pos.distanceTo(targetWorldPos)
                     activeSats.push({ pos: pos.clone(), targetPos: targetWorldPos.clone(), dist, index: i })
                 }
+            } else {
+                // If propagation fails, hide
+                currentPositions[i*3] = 0; currentPositions[i*3+1] = 0; currentPositions[i*3+2] = 0;
             }
         })
-
-        // 2. Filter for the 2 closest satellites
-        activeSats.sort((a, b) => a.dist - b.dist);
-        const top2 = activeSats.slice(0, 2);
 
         const newSignals: {satPos: THREE.Vector3, targetPos: THREE.Vector3}[] = []
-        
-        top2.forEach((sat, idx) => {
-            let visualPos = sat.pos.clone();
 
-            if (idx === 0) {
-                // FORCE LEO ALTITUDE for the "Receiver"
-                visualPos.normalize().multiplyScalar(SCENE_EARTH_RADIUS * 1.25);
-            } else {
-                 if (visualPos.length() < SCENE_EARTH_RADIUS * 2.5) {
-                     visualPos.normalize().multiplyScalar(SCENE_EARTH_RADIUS * 3.5);
-                 }
+        // 2. CONDITIONAL DISPLAY LOGIC
+        if (targetWorldPos) {
+            // Mode: THREAT SELECTED -> Show only top 2, modified visuals
+            activeSats.sort((a, b) => a.dist - b.dist);
+            const top2 = activeSats.slice(0, 2);
+            
+            // First, HIDE ALL (Move to center of earth)
+            for(let i=0; i<systems.length; i++) {
+                currentPositions[i*3] = 0; currentPositions[i*3+1] = 0; currentPositions[i*3+2] = 0;
             }
-            
-            // Overwrite the specific satellite position in the buffer to match the visual logic
-            currentPositions[sat.index*3] = visualPos.x
-            currentPositions[sat.index*3+1] = visualPos.y
-            currentPositions[sat.index*3+2] = visualPos.z
-            
-            newSignals.push({ satPos: visualPos, targetPos: sat.targetPos })
-        })
+
+            // Now show and position the top 2
+            top2.forEach((sat, idx) => {
+                let visualPos = sat.pos.clone();
+
+                if (idx === 0) {
+                    // FORCE LEO ALTITUDE for the "Receiver"
+                    visualPos.normalize().multiplyScalar(SCENE_EARTH_RADIUS * 1.25);
+                } else {
+                    if (visualPos.length() < SCENE_EARTH_RADIUS * 2.5) {
+                        visualPos.normalize().multiplyScalar(SCENE_EARTH_RADIUS * 3.5);
+                    }
+                }
+                
+                // Update buffer for visible ones
+                currentPositions[sat.index*3] = visualPos.x
+                currentPositions[sat.index*3+1] = visualPos.y
+                currentPositions[sat.index*3+2] = visualPos.z
+                
+                newSignals.push({ satPos: visualPos, targetPos: sat.targetPos })
+            })
+        }
+        // Mode: NO THREAT -> All satellites visible at real positions (already set in step 1 loop)
 
         setSignals(newSignals)
         pointsRef.current.geometry.attributes.position.needsUpdate = true
@@ -498,24 +512,40 @@ function OrbitsAndSatellites({ targetWorldPos }: { targetWorldPos: THREE.Vector3
 function SceneContent() {
     const earthGroup = useRef<THREE.Group>(null)
     const [targetWorldPos, setTargetWorldPos] = useState<THREE.Vector3 | null>(null)
-    const { addAlert } = useStore()
+    const { addAlert, alerts, selectedAlertId } = useStore()
     
+    // Initialize Threats
     useEffect(() => {
-        const t1 = setTimeout(() => addAlert("Signal Intercepted: South Pacific (Point Nemo)", "warning"), 2000)
-        return () => clearTimeout(t1)
+        // Clear existing alerts to prevent duplicates on hot reload if needed, but 'addAlert' appends.
+        // We'll just add them once.
+        const t1 = setTimeout(() => addAlert("Signal Intercepted: South Pacific (Point Nemo)", "warning", { lat: -48.9, lon: -123.4 }), 1000)
+        const t2 = setTimeout(() => addAlert("Jamming Detected: Baltic Sea", "critical", { lat: 55.0, lon: 20.0 }), 3000)
+        const t3 = setTimeout(() => addAlert("Spoofing Attempt: Black Sea", "critical", { lat: 43.0, lon: 35.0 }), 5000)
+        
+        return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); }
     }, [addAlert])
 
     useFrame(() => {
         if (earthGroup.current) {
-            earthGroup.current.rotation.y += 0.0005 // Earth rotates
+            earthGroup.current.rotation.y += 0.0005 
+
+            const activeAlert = alerts.find(a => a.id === selectedAlertId)
             
-            // Point Nemo (Oceanic Pole of Inaccessibility): -48.9 S, -123.4 W
-            // ADJUSTMENT: Match the HeatmapIndicator Radius exactly (Radius + 0.08)
-            const relativePos = latLonToVector3(-48.9, -123.4, SCENE_EARTH_RADIUS + 0.08)
-            const worldPos = relativePos.clone().applyMatrix4(earthGroup.current.matrixWorld)
-            setTargetWorldPos(worldPos)
+            if (activeAlert && activeAlert.coordinates) {
+                // Calculate position for the selected threat
+                const { lat, lon } = activeAlert.coordinates
+                // Match Heatmap Radius (Earth + 0.08)
+                const relativePos = latLonToVector3(lat, lon, SCENE_EARTH_RADIUS + 0.08)
+                const worldPos = relativePos.clone().applyMatrix4(earthGroup.current.matrixWorld)
+                setTargetWorldPos(worldPos)
+            } else {
+                setTargetWorldPos(null)
+            }
         }
     })
+
+    // Get active alert for Heatmap rendering
+    const activeAlert = alerts.find(a => a.id === selectedAlertId)
 
     return (
         <>
@@ -526,11 +556,11 @@ function SceneContent() {
                     <TexturedEarth />
                 </React.Suspense>
                 
-                {/* Heatmap overlay on surface */}
-                <HeatmapIndicator position={latLonToVector3(-48.9, -123.4, SCENE_EARTH_RADIUS + 0.08)} />
+                {/* Heatmap overlay - Only show if threat selected */}
+                {activeAlert && activeAlert.coordinates && (
+                    <HeatmapIndicator position={latLonToVector3(activeAlert.coordinates.lat, activeAlert.coordinates.lon, SCENE_EARTH_RADIUS + 0.08)} />
+                )}
 
-                {/* Target Dot - Removed, handled by HeatmapIndicator */}
-                
                 <AtmosphereGlow />
             </group>
         </>

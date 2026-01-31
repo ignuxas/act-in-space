@@ -300,7 +300,8 @@ function TutorialModal() {
 export default function DashboardOverlay() {
   const { 
     precision, weather, showFusion, showAnomalies, alerts, isAnalysisOpen, isTutorialOpen,
-    setPrecision, setWeather, toggleFusion, toggleAnomalies, removeAlert, setAnalysisOpen, setTutorialOpen
+    setPrecision, setWeather, toggleFusion, toggleAnomalies, removeAlert, setAnalysisOpen, setTutorialOpen,
+    selectedAlertId, setSelectedAlert
   } = useStore()
   
   const [time, setTime] = useState('')
@@ -580,8 +581,10 @@ export default function DashboardOverlay() {
                             initial={{ opacity: 0, x: 20 }}
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: 20 }}
+                            onClick={() => setSelectedAlert(selectedAlertId === alert.id ? null : alert.id)}
                             className={cn(
-                                "p-3 rounded-lg border backdrop-blur-md shadow-lg flex items-start gap-3 relative overflow-hidden",
+                                "p-3 rounded-lg border backdrop-blur-md shadow-lg flex items-start gap-3 relative overflow-hidden cursor-pointer hover:bg-white/5 transition-all",
+                                selectedAlertId === alert.id ? "ring-2 ring-white/50 scale-[1.02]" : "",
                                 alert.type === 'critical' ? "bg-red-500/20 border-red-500/30 text-white" :
                                 alert.type === 'warning' ? "bg-orange-500/20 border-orange-500/30 text-white" :
                                 "bg-blue-500/20 border-blue-500/30 text-white"
@@ -596,8 +599,8 @@ export default function DashboardOverlay() {
                                 <p className="text-xs opacity-70 leading-relaxed truncate">{alert.message}</p>
                             </div>
                             <button 
-                                onClick={() => removeAlert(alert.id)}
-                                className="text-white/40 hover:text-white transition-colors"
+                                onClick={(e) => { e.stopPropagation(); removeAlert(alert.id); }}
+                                className="text-white/40 hover:text-white transition-colors p-1"
                             >
                                 ×
                             </button>
